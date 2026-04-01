@@ -2,7 +2,7 @@ use clap::Subcommand;
 use tuhucar_core::config::Config;
 use tuhucar_core::http::HttpClient;
 use tuhucar_core::output::format_response;
-use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, TuhucarError};
+use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, ResponseMeta, TuhucarError};
 use tuhucar_car::CarCommand;
 use tuhucar_car::models::CarMatchInput;
 
@@ -22,6 +22,7 @@ pub async fn run(
     format: OutputFormat,
     dry_run: bool,
     _verbose: bool,
+    meta: ResponseMeta,
 ) -> Result<(), TuhucarError> {
     match action {
         CarAction::Schema => {
@@ -42,7 +43,7 @@ pub async fn run(
             let cmd = CarCommand::new(client);
             let input = CarMatchInput { query };
             let result = cmd.execute(input).await?;
-            let resp = Response::success(result, None);
+            let resp = Response::success(result, Some(meta));
             println!("{}", format_response(&resp, format));
             Ok(())
         }

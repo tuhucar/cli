@@ -1,7 +1,10 @@
 mod commands;
 
 use clap::Parser;
-use tuhucar_core::{ApiError, OutputFormat, Response, TuhucarError};
+use tuhucar_core::update;
+use tuhucar_core::{ApiError, Notice, OutputFormat, Response, ResponseMeta, TuhucarError};
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// tuhucar - 途虎养车 CLI 工具
 #[derive(Parser)]
@@ -31,9 +34,27 @@ fn pre_scan_format() -> bool {
             .any(|w| w[0] == "--format" && w[1] == "json")
 }
 
+/// Build ResponseMeta with version and any pending update notices.
+fn build_meta() -> ResponseMeta {
+    let mut notices = Vec::new();
+    if let Some(notice) = update::pending_notice() {
+        notices.push(notice.clone());
+        // Mark as notified so we don't repeat
+        let Notice::Update { ref latest, .. } = notice;
+        update::mark_notified(latest);
+    }
+    ResponseMeta {
+        version: VERSION.to_string(),
+        notices,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let wants_json = pre_scan_format();
+
+    // Trigger background update check if needed (best-effort, non-blocking)
+    let _ = update::should_check(VERSION);
 
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -43,7 +64,8 @@ async fn main() {
                     message: e.to_string(),
                     suggestion: "Run: tuhucar --help".to_string(),
                 });
-                let resp: Response<()> = Response::error(api_err, None);
+                let meta = build_meta();
+                let resp: Response<()> = Response::error(api_err, Some(meta));
                 println!("{}", serde_json::to_string_pretty(&resp).unwrap());
                 std::process::exit(2);
             } else {
@@ -52,11 +74,28 @@ async fn main() {
         }
     };
 
-    let format = OutputFormat::from_str_opt(&cli.format).unwrap_or(OutputFormat::Markdown);
+    let format = match OutputFormat::from_str_opt(&cli.format) {
+        Some(f) => f,
+        None => {
+            let api_err = ApiError::from(TuhucarError::InvalidArgs {
+                message: format!("Invalid format '{}'. Must be 'json' or 'markdown'.", cli.format),
+                suggestion: "Use --format json or --format markdown".to_string(),
+            });
+            let resp: Response<()> = Response::error(api_err, None);
+            if wants_json {
+                println!("{}", serde_json::to_string_pretty(&resp).unwrap());
+            } else {
+                eprintln!("Error: Invalid format '{}'. Must be 'json' or 'markdown'.", cli.format);
+            }
+            std::process::exit(2);
+        }
+    };
 
-    if let Err(e) = commands::run(cli.command, format, cli.dry_run, cli.verbose).await {
+    let meta = build_meta();
+
+    if let Err(e) = commands::run(cli.command, format, cli.dry_run, cli.verbose, meta.clone()).await {
         let api_err: ApiError = e.into();
-        let resp: Response<()> = Response::error(api_err, None);
+        let resp: Response<()> = Response::error(api_err, Some(meta));
         match format {
             OutputFormat::Json => {
                 println!("{}", serde_json::to_string_pretty(&resp).unwrap());
@@ -69,5 +108,13 @@ async fn main() {
             }
         }
         std::process::exit(1);
+    }
+
+    // For markdown mode, print update notices to stderr after command output
+    if format == OutputFormat::Markdown {
+        if let Some(notice) = update::pending_notice() {
+            let Notice::Update { message, .. } = notice;
+            eprintln!("\n{}", message);
+        }
     }
 }

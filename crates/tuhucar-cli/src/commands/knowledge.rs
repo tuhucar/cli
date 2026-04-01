@@ -2,7 +2,7 @@ use clap::Subcommand;
 use tuhucar_core::config::Config;
 use tuhucar_core::http::HttpClient;
 use tuhucar_core::output::format_response;
-use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, TuhucarError};
+use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, ResponseMeta, TuhucarError};
 use tuhucar_knowledge::KnowledgeCommand;
 use tuhucar_knowledge::models::KnowledgeQueryInput;
 
@@ -25,6 +25,7 @@ pub async fn run(
     format: OutputFormat,
     dry_run: bool,
     _verbose: bool,
+    meta: ResponseMeta,
 ) -> Result<(), TuhucarError> {
     match action {
         KnowledgeAction::Schema => {
@@ -45,7 +46,7 @@ pub async fn run(
             let cmd = KnowledgeCommand::new(client);
             let input = KnowledgeQueryInput { car_id, question };
             let result = cmd.execute(input).await?;
-            let resp = Response::success(result, None);
+            let resp = Response::success(result, Some(meta));
             println!("{}", format_response(&resp, format));
             Ok(())
         }

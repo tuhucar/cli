@@ -4,7 +4,7 @@ pub mod knowledge;
 pub mod skill;
 
 use clap::Subcommand;
-use tuhucar_core::{OutputFormat, TuhucarError};
+use tuhucar_core::{OutputFormat, ResponseMeta, TuhucarError};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -35,11 +35,12 @@ pub async fn run(
     format: OutputFormat,
     dry_run: bool,
     verbose: bool,
+    meta: ResponseMeta,
 ) -> Result<(), TuhucarError> {
     match cmd {
-        Commands::Car { action } => car::run(action, format, dry_run, verbose).await,
-        Commands::Knowledge { action } => knowledge::run(action, format, dry_run, verbose).await,
-        Commands::Config { action } => config::run(action, format).await,
+        Commands::Car { action } => car::run(action, format, dry_run, verbose, meta).await,
+        Commands::Knowledge { action } => knowledge::run(action, format, dry_run, verbose, meta).await,
+        Commands::Config { action } => config::run(action, format, meta).await,
         Commands::Skill { action } => skill::run(action, format).await,
     }
 }
