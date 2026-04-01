@@ -1,0 +1,4 @@
+[package]
+name = "tuhucar-cli"
+version.workspace = true
+edition.workspace = true

@@ -1,0 +1,4 @@
+[package]
+name = "tuhucar-car"
+version.workspace = true
+edition.workspace = true
