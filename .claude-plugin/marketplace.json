@@ -1,0 +1,9 @@
+{
+  "name": "tuhucar",
+  "displayName": "TuhuCar 途虎养车",
+  "description": "AI-powered car maintenance knowledge assistant. Match car models, query maintenance schedules, and get expert advice through your AI coding assistant.",
+  "categories": ["productivity", "tools"],
+  "author": "TuhuCar",
+  "repository": "https://github.com/tuhucar/tuhucar",
+  "installCommand": "npm install -g @tuhucar/cli && tuhucar skill install"
+}

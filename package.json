@@ -1,0 +1,11 @@
+{
+  "name": "tuhucar",
+  "version": "0.1.0",
+  "description": "途虎养车 CLI 工具和 AI Skill",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tuhucar/tuhucar"
+  },
+  "license": "MIT",
+  "private": true
+}
