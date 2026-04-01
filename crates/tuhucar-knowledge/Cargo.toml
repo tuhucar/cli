@@ -2,3 +2,10 @@
 name = "tuhucar-knowledge"
 version.workspace = true
 edition.workspace = true
+
+[dependencies]
+tuhucar-core = { path = "../tuhucar-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+schemars = { workspace = true }
