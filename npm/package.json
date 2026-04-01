@@ -1,0 +1,20 @@
+{
+  "name": "@tuhucar/cli",
+  "version": "0.1.0",
+  "description": "途虎养车 CLI 工具 — 车型匹配与养车知识查询",
+  "bin": {
+    "tuhucar": "bin/tuhucar.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tuhucar/tuhucar"
+  },
+  "keywords": ["tuhucar", "car", "maintenance", "cli"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
