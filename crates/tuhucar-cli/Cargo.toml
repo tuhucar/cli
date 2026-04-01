@@ -2,3 +2,17 @@
 name = "tuhucar-cli"
 version.workspace = true
 edition.workspace = true
+
+[[bin]]
+name = "tuhucar"
+path = "src/main.rs"
+
+[dependencies]
+tuhucar-core = { path = "../tuhucar-core" }
+tuhucar-car = { path = "../tuhucar-car" }
+tuhucar-knowledge = { path = "../tuhucar-knowledge" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
