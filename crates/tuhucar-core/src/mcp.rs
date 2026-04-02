@@ -87,7 +87,7 @@ impl McpClient {
 
         let mut mcp = Self {
             client,
-            endpoint: config.api.base_url.clone(),
+            endpoint: config.api.endpoint.clone(),
             next_id: AtomicU64::new(1),
             session_id: None,
         };

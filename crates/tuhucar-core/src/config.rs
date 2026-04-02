@@ -11,7 +11,7 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiConfig {
-    pub base_url: String,
+    pub endpoint: String,
     #[serde(default = "default_timeout")]
     pub timeout: u64,
 }
@@ -70,7 +70,7 @@ impl Config {
     pub fn default_config() -> Self {
         Self {
             api: ApiConfig {
-                base_url: "https://api.tuhucar.com".into(),
+                endpoint: "https://api.tuhucar.com".into(),
                 timeout: 30,
             },
             output: OutputConfig::default(),
@@ -86,14 +86,14 @@ mod tests {
     fn parse_valid_config() {
         let toml_str = r#"
 [api]
-base_url = "https://api.example.com"
+endpoint = "https://api.example.com"
 timeout = 15
 
 [output]
 default_format = "json"
 "#;
         let config: Config = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.api.base_url, "https://api.example.com");
+        assert_eq!(config.api.endpoint, "https://api.example.com");
         assert_eq!(config.api.timeout, 15);
         assert_eq!(config.output.default_format, "json");
     }
@@ -102,7 +102,7 @@ default_format = "json"
     fn parse_minimal_config_uses_defaults() {
         let toml_str = r#"
 [api]
-base_url = "https://api.example.com"
+endpoint = "https://api.example.com"
 "#;
         let config: Config = toml::from_str(toml_str).unwrap();
         assert_eq!(config.api.timeout, 30);
@@ -119,7 +119,7 @@ base_url = "https://api.example.com"
     #[test]
     fn default_config_has_expected_values() {
         let config = Config::default_config();
-        assert_eq!(config.api.base_url, "https://api.tuhucar.com");
+        assert_eq!(config.api.endpoint, "https://api.tuhucar.com");
         assert_eq!(config.api.timeout, 30);
         assert_eq!(config.output.default_format, "markdown");
     }
