@@ -76,4 +76,50 @@ mod tests {
         assert!(md.contains("[H5]"));
         assert!(md.contains("机油品牌推荐"));
     }
+
+    #[test]
+    fn knowledge_output_miniprogram_badge() {
+        let output = KnowledgeQueryOutput {
+            answer: "答案".into(),
+            links: vec![ExternalLink {
+                title: "小程序入口".into(),
+                url: "weixin://miniprogram/abc".into(),
+                link_type: LinkType::MiniProgram,
+            }],
+            related_questions: vec![],
+        };
+        let md = output.to_markdown();
+        assert!(md.contains("[小程序]"));
+        assert!(md.contains("[小程序入口](weixin://miniprogram/abc)"));
+    }
+
+    #[test]
+    fn knowledge_output_no_links_no_questions() {
+        let output = KnowledgeQueryOutput {
+            answer: "简单答案".into(),
+            links: vec![],
+            related_questions: vec![],
+        };
+        let md = output.to_markdown();
+        assert_eq!(md, "简单答案\n");
+        assert!(!md.contains("相关链接"));
+        assert!(!md.contains("相关问题"));
+    }
+
+    #[test]
+    fn knowledge_output_to_json_roundtrips() {
+        let output = KnowledgeQueryOutput {
+            answer: "每5000公里".into(),
+            links: vec![ExternalLink {
+                title: "t".into(),
+                url: "u".into(),
+                link_type: LinkType::H5,
+            }],
+            related_questions: vec!["q1".into()],
+        };
+        let json_str = output.to_json();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed["answer"], "每5000公里");
+        assert_eq!(parsed["links"][0]["link_type"], "H5");
+    }
 }

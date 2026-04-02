@@ -212,4 +212,328 @@ mod tests {
         let parsed: UpdateNotified = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.latest, "0.2.0");
     }
+
+    // ── parse_epoch_or_zero tests ──────────────────────────────────────
+
+    #[test]
+    fn parse_epoch_or_zero_valid() {
+        let t = parse_epoch_or_zero("1700000000");
+        let expected = SystemTime::UNIX_EPOCH + Duration::from_secs(1700000000);
+        assert_eq!(t, expected);
+    }
+
+    #[test]
+    fn parse_epoch_or_zero_invalid_returns_epoch() {
+        let t = parse_epoch_or_zero("not-a-number");
+        assert_eq!(t, SystemTime::UNIX_EPOCH);
+    }
+
+    #[test]
+    fn parse_epoch_or_zero_empty_returns_epoch() {
+        let t = parse_epoch_or_zero("");
+        assert_eq!(t, SystemTime::UNIX_EPOCH);
+    }
+
+    // ── HOME-dependent test helpers ────────────────────────────────────
+
+    use std::env;
+    use std::sync::Mutex;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Set HOME to a tempdir and return it. Caller must hold the tempdir alive.
+    fn setup_test_home() -> std::path::PathBuf {
+        let dir = env::temp_dir().join(format!("tuhucar-test-{}", std::process::id()));
+        let tuhucar_dir = dir.join(".tuhucar");
+        std::fs::create_dir_all(&tuhucar_dir).unwrap();
+        env::set_var("HOME", &dir);
+        dir
+    }
+
+    fn cleanup_test_home(dir: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn write_check_file(dir: &std::path::Path, check: &UpdateCheck) {
+        let path = dir.join(".tuhucar").join(".update_check");
+        let json = serde_json::to_string_pretty(check).unwrap();
+        std::fs::write(path, json).unwrap();
+    }
+
+    fn write_notified_file(dir: &std::path::Path, notified: &UpdateNotified) {
+        let path = dir.join(".tuhucar").join(".update_notified");
+        let json = serde_json::to_string_pretty(notified).unwrap();
+        std::fs::write(path, json).unwrap();
+    }
+
+    // ── should_check tests ─────────────────────────────────────────────
+
+    #[test]
+    fn should_check_returns_true_when_no_file() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        assert!(should_check("0.1.0"));
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn should_check_returns_true_when_version_changed() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: format!(
+                    "{}",
+                    SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                ),
+                current: "0.1.0".into(),
+                latest: "0.1.0".into(),
+                status: UpdateStatus::UpToDate,
+                install_source: InstallSource::Unknown,
+                staging_path: None,
+            },
+        );
+        // Version changed from 0.1.0 to 0.2.0 → should check
+        assert!(should_check("0.2.0"));
+        // Verify cleanup happened
+        assert!(!dir.join(".tuhucar").join(".update_check").exists());
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn should_check_returns_false_when_recently_checked() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: format!("{}", now),
+                current: "0.1.0".into(),
+                latest: "0.1.0".into(),
+                status: UpdateStatus::UpToDate,
+                install_source: InstallSource::Unknown,
+                staging_path: None,
+            },
+        );
+        assert!(!should_check("0.1.0"));
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn should_check_uses_short_interval_for_failed() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        // Set checked_at to 2 hours ago — longer than FAILED_RETRY (1h) but shorter than CHECK_INTERVAL (24h)
+        let two_hours_ago = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            - 7200;
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: format!("{}", two_hours_ago),
+                current: "0.1.0".into(),
+                latest: "0.1.0".into(),
+                status: UpdateStatus::CheckFailed,
+                install_source: InstallSource::Unknown,
+                staging_path: None,
+            },
+        );
+        // CheckFailed uses 1h interval, 2h ago > 1h → should check
+        assert!(should_check("0.1.0"));
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn should_check_uses_long_interval_for_up_to_date() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        // Set checked_at to 2 hours ago
+        let two_hours_ago = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            - 7200;
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: format!("{}", two_hours_ago),
+                current: "0.1.0".into(),
+                latest: "0.1.0".into(),
+                status: UpdateStatus::UpToDate,
+                install_source: InstallSource::Unknown,
+                staging_path: None,
+            },
+        );
+        // UpToDate uses 24h interval, 2h ago < 24h → should NOT check
+        assert!(!should_check("0.1.0"));
+        cleanup_test_home(&dir);
+    }
+
+    // ── pending_notice tests ───────────────────────────────────────────
+
+    #[test]
+    fn pending_notice_returns_none_when_no_file() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        assert!(pending_notice().is_none());
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_returns_none_for_up_to_date() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.1.0".into(),
+                status: UpdateStatus::UpToDate,
+                install_source: InstallSource::Npm,
+                staging_path: None,
+            },
+        );
+        assert!(pending_notice().is_none());
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_returns_notice_for_update_available() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.2.0".into(),
+                status: UpdateStatus::UpdateAvailable,
+                install_source: InstallSource::Npm,
+                staging_path: None,
+            },
+        );
+        let notice = pending_notice().unwrap();
+        match notice {
+            Notice::Update {
+                current,
+                latest,
+                message,
+            } => {
+                assert_eq!(current, "0.1.0");
+                assert_eq!(latest, "0.2.0");
+                assert!(message.contains("npm update"));
+            }
+        }
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_returns_homebrew_message() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.2.0".into(),
+                status: UpdateStatus::UpdateAvailable,
+                install_source: InstallSource::Homebrew,
+                staging_path: None,
+            },
+        );
+        let notice = pending_notice().unwrap();
+        let Notice::Update { message, .. } = notice;
+        assert!(message.contains("brew upgrade"));
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_returns_install_sh_message() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.2.0".into(),
+                status: UpdateStatus::UpdateAvailable,
+                install_source: InstallSource::InstallSh,
+                staging_path: None,
+            },
+        );
+        let notice = pending_notice().unwrap();
+        let Notice::Update { message, .. } = notice;
+        assert!(message.contains("自动更新"));
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_skips_already_notified_version() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.2.0".into(),
+                status: UpdateStatus::UpdateAvailable,
+                install_source: InstallSource::Npm,
+                staging_path: None,
+            },
+        );
+        write_notified_file(
+            &dir,
+            &UpdateNotified {
+                latest: "0.2.0".into(),
+                notified_at: "456".into(),
+            },
+        );
+        assert!(pending_notice().is_none());
+        cleanup_test_home(&dir);
+    }
+
+    #[test]
+    fn pending_notice_shows_for_newer_version() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let dir = setup_test_home();
+        write_check_file(
+            &dir,
+            &UpdateCheck {
+                checked_at: "123".into(),
+                current: "0.1.0".into(),
+                latest: "0.3.0".into(),
+                status: UpdateStatus::Downloaded,
+                install_source: InstallSource::Unknown,
+                staging_path: None,
+            },
+        );
+        write_notified_file(
+            &dir,
+            &UpdateNotified {
+                latest: "0.2.0".into(),
+                notified_at: "456".into(),
+            },
+        );
+        let notice = pending_notice().unwrap();
+        let Notice::Update {
+            latest, message, ..
+        } = notice;
+        assert_eq!(latest, "0.3.0");
+        assert!(message.contains("手动更新"));
+        cleanup_test_home(&dir);
+    }
 }

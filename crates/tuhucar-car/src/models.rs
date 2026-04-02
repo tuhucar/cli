@@ -68,4 +68,69 @@ mod tests {
         assert!(md.contains("95%"));
         assert!(md.contains("`12345`"));
     }
+
+    #[test]
+    fn car_match_empty_candidates_markdown() {
+        let result = CarMatchResult {
+            total_count: 0,
+            candidates: vec![],
+        };
+        let md = result.to_markdown();
+        assert_eq!(md, "No matching car models found.\n");
+    }
+
+    #[test]
+    fn car_match_multiple_candidates_markdown() {
+        let result = CarMatchResult {
+            total_count: 2,
+            candidates: vec![
+                CarMatchCandidate {
+                    car_id: "111".into(),
+                    brand: "大众".into(),
+                    series: "朗逸".into(),
+                    year: "2024".into(),
+                    displacement: "1.5L".into(),
+                    model: "舒适版".into(),
+                    confidence: 0.95,
+                },
+                CarMatchCandidate {
+                    car_id: "222".into(),
+                    brand: "大众".into(),
+                    series: "朗逸".into(),
+                    year: "2023".into(),
+                    displacement: "1.5L".into(),
+                    model: "豪华版".into(),
+                    confidence: 0.80,
+                },
+            ],
+        };
+        let md = result.to_markdown();
+        assert!(md.contains("Found 2 matching car model(s):"));
+        assert!(md.contains("1. **大众 朗逸 2024 1.5L 舒适版**"));
+        assert!(md.contains("2. **大众 朗逸 2023 1.5L 豪华版**"));
+        assert!(md.contains("95%"));
+        assert!(md.contains("80%"));
+        assert!(md.contains("`111`"));
+        assert!(md.contains("`222`"));
+    }
+
+    #[test]
+    fn car_match_to_json_roundtrips() {
+        let result = CarMatchResult {
+            total_count: 1,
+            candidates: vec![CarMatchCandidate {
+                car_id: "123".into(),
+                brand: "丰田".into(),
+                series: "卡罗拉".into(),
+                year: "2024".into(),
+                displacement: "1.8L".into(),
+                model: "混动版".into(),
+                confidence: 0.99,
+            }],
+        };
+        let json_str = result.to_json();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed["total_count"], 1);
+        assert_eq!(parsed["candidates"][0]["brand"], "丰田");
+    }
 }

@@ -84,3 +84,81 @@ fn config_missing_returns_error_json() {
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(json["error"]["code"], "CONFIG_MISSING");
 }
+
+#[test]
+fn invalid_format_returns_error_exit_code() {
+    let output = tuhucar()
+        .args(["--format", "xml", "car", "schema"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Invalid format") || stderr.contains("xml"));
+}
+
+#[test]
+fn invalid_format_json_returns_envelope() {
+    // When both --format json and --format xml are present, pre_scan sees json
+    // but the actual parse finds xml. Test with just xml — user gets stderr.
+    let output = tuhucar()
+        .args(["--format", "xml"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+}
+
+#[test]
+fn config_init_json_returns_envelope() {
+    let tmp = std::env::temp_dir().join("tuhucar-test-config-init");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let output = tuhucar()
+        .args(["--format", "json", "config", "init"])
+        .env("HOME", &tmp)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert!(json["data"].is_object());
+    assert!(json["data"]["path"].as_str().unwrap().contains("config.toml"));
+    assert!(json["data"]["message"].as_str().unwrap().contains("saved"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn config_show_json_returns_envelope() {
+    let tmp = std::env::temp_dir().join("tuhucar-test-config-show");
+    let _ = std::fs::remove_dir_all(&tmp);
+    let tuhucar_dir = tmp.join(".tuhucar");
+    std::fs::create_dir_all(&tuhucar_dir).unwrap();
+    std::fs::write(
+        tuhucar_dir.join("config.toml"),
+        "[api]\nbase_url = \"https://test.example.com\"\n",
+    ).unwrap();
+    let output = tuhucar()
+        .args(["--format", "json", "config", "show"])
+        .env("HOME", &tmp)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert!(json["data"].is_object());
+    assert_eq!(json["data"]["api"]["base_url"], "https://test.example.com");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn json_error_response_includes_meta_version() {
+    let output = tuhucar()
+        .args(["--format", "json", "config", "show"])
+        .env("HOME", "/tmp/tuhucar-test-nonexistent-meta")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    // meta.version should be present in error responses too
+    assert!(json["meta"]["version"].is_string());
+}

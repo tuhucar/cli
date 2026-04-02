@@ -124,4 +124,39 @@ mod tests {
         let api_err: ApiError = err.into();
         assert!(!api_err.retryable);
     }
+
+    #[test]
+    fn config_missing_converts_to_api_error() {
+        let err = TuhucarError::ConfigMissing {
+            suggestion: "Run: tuhucar config init".into(),
+        };
+        let api_err: ApiError = err.into();
+        assert_eq!(api_err.code, "CONFIG_MISSING");
+        assert!(!api_err.retryable);
+        assert_eq!(api_err.suggestion.unwrap(), "Run: tuhucar config init");
+        assert!(api_err.upstream.is_none());
+    }
+
+    #[test]
+    fn config_parse_converts_to_api_error() {
+        let err = TuhucarError::ConfigParse("bad toml at line 5".into());
+        let api_err: ApiError = err.into();
+        assert_eq!(api_err.code, "CONFIG_PARSE_ERROR");
+        assert!(!api_err.retryable);
+        assert_eq!(api_err.message, "bad toml at line 5");
+        assert!(api_err.suggestion.unwrap().contains("config.toml"));
+    }
+
+    #[test]
+    fn invalid_args_converts_to_api_error() {
+        let err = TuhucarError::InvalidArgs {
+            message: "missing arg".into(),
+            suggestion: "use --help".into(),
+        };
+        let api_err: ApiError = err.into();
+        assert_eq!(api_err.code, "INVALID_ARGS");
+        assert!(!api_err.retryable);
+        assert_eq!(api_err.message, "missing arg");
+        assert_eq!(api_err.suggestion.unwrap(), "use --help");
+    }
 }
