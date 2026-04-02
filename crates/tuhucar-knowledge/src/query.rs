@@ -1,19 +1,21 @@
 use tuhucar_core::error::TuhucarError;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use crate::models::KnowledgeQueryOutput;
 
 pub async fn query_knowledge(
-    client: &HttpClient,
+    client: &McpClient,
     car_id: &str,
     question: &str,
 ) -> Result<KnowledgeQueryOutput, TuhucarError> {
     let body = client
-        .get("/api/v1/knowledge/query", &[("car_id", car_id), ("q", question)])
+        .call_tool(
+            "knowledge_query",
+            serde_json::json!({ "car_id": car_id, "question": question }),
+        )
         .await?;
 
-    serde_json::from_str(&body).map_err(|e| TuhucarError::ApiError {
-        status: 200,
-        code: "PARSE_ERROR".into(),
+    serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
+        code: -1,
         message: format!("Failed to parse knowledge response: {}", e),
     })
 }

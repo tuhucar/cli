@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use tuhucar_core::config::Config;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use tuhucar_core::output::format_response;
 use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, ResponseMeta, TuhucarError};
 use tuhucar_knowledge::KnowledgeCommand;
@@ -29,20 +29,20 @@ pub async fn run(
 ) -> Result<(), TuhucarError> {
     match action {
         KnowledgeAction::Schema => {
-            let config = Config::default_config();
-            let client = HttpClient::new(&config);
-            let cmd = KnowledgeCommand::new(client);
-            let schema = cmd.schema();
+            let schema = KnowledgeCommand::schema_static();
             println!("{}", serde_json::to_string_pretty(&schema).unwrap());
             Ok(())
         }
         KnowledgeAction::Query { car_id, question } => {
             if dry_run {
-                println!("GET /api/v1/knowledge/query?car_id={}&q={}", car_id, question);
+                println!(
+                    "MCP tools/call knowledge_query {{\"car_id\":\"{}\",\"question\":\"{}\"}}",
+                    car_id, question
+                );
                 return Ok(());
             }
             let config = Config::load()?;
-            let client = HttpClient::new(&config);
+            let client = McpClient::connect(&config).await?;
             let cmd = KnowledgeCommand::new(client);
             let input = KnowledgeQueryInput { car_id, question };
             let result = cmd.execute(input).await?;

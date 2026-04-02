@@ -68,7 +68,7 @@ fn dry_run_does_not_make_request() {
         .unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("GET /api/v1/car/match"));
+    assert!(stdout.contains("MCP tools/call car_match"));
 }
 
 #[test]

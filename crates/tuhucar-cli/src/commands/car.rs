@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use tuhucar_core::config::Config;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use tuhucar_core::output::format_response;
 use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, ResponseMeta, TuhucarError};
 use tuhucar_car::CarCommand;
@@ -26,20 +26,17 @@ pub async fn run(
 ) -> Result<(), TuhucarError> {
     match action {
         CarAction::Schema => {
-            let config = Config::default_config();
-            let client = HttpClient::new(&config);
-            let cmd = CarCommand::new(client);
-            let schema = cmd.schema();
+            let schema = CarCommand::schema_static();
             println!("{}", serde_json::to_string_pretty(&schema).unwrap());
             Ok(())
         }
         CarAction::Match { query } => {
             if dry_run {
-                println!("GET /api/v1/car/match?q={}", query);
+                println!("MCP tools/call car_match {{\"query\":\"{}\"}}", query);
                 return Ok(());
             }
             let config = Config::load()?;
-            let client = HttpClient::new(&config);
+            let client = McpClient::connect(&config).await?;
             let cmd = CarCommand::new(client);
             let input = CarMatchInput { query };
             let result = cmd.execute(input).await?;

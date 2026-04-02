@@ -12,8 +12,8 @@ pub enum TuhucarError {
     ConfigParse(String),
     #[error("Car not found")]
     CarNotFound { suggestion: String },
-    #[error("API error: {message}")]
-    ApiError { status: u16, code: String, message: String },
+    #[error("MCP error ({code}): {message}")]
+    McpError { code: i64, message: String },
     #[error("Invalid arguments: {message}")]
     InvalidArgs { message: String, suggestion: String },
 }
@@ -67,12 +67,16 @@ impl From<TuhucarError> for ApiError {
                 suggestion: Some(suggestion),
                 upstream: None,
             },
-            TuhucarError::ApiError { status, code, message } => ApiError {
-                code: "API_ERROR".into(),
+            TuhucarError::McpError { code, message } => ApiError {
+                code: "MCP_ERROR".into(),
                 message: message.clone(),
-                retryable: status >= 500,
+                retryable: code >= 500,
                 suggestion: None,
-                upstream: Some(UpstreamError { status, code, message }),
+                upstream: Some(UpstreamError {
+                    status: code as u16,
+                    code: "MCP_ERROR".into(),
+                    message,
+                }),
             },
             TuhucarError::InvalidArgs { message, suggestion } => ApiError {
                 code: "INVALID_ARGS".into(),
@@ -101,10 +105,9 @@ mod tests {
     }
 
     #[test]
-    fn api_error_5xx_is_retryable() {
-        let err = TuhucarError::ApiError {
-            status: 502,
-            code: "BAD_GATEWAY".into(),
+    fn mcp_error_5xx_is_retryable() {
+        let err = TuhucarError::McpError {
+            code: 502,
             message: "Bad Gateway".into(),
         };
         let api_err: ApiError = err.into();
@@ -113,10 +116,9 @@ mod tests {
     }
 
     #[test]
-    fn api_error_4xx_is_not_retryable() {
-        let err = TuhucarError::ApiError {
-            status: 400,
-            code: "BAD_REQUEST".into(),
+    fn mcp_error_4xx_is_not_retryable() {
+        let err = TuhucarError::McpError {
+            code: 400,
             message: "Bad Request".into(),
         };
         let api_err: ApiError = err.into();

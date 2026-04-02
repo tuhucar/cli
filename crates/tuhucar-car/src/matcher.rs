@@ -1,16 +1,15 @@
 use tuhucar_core::error::TuhucarError;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use crate::models::{CarMatchResult, CarMatchCandidate};
 
-pub async fn match_car(client: &HttpClient, query: &str) -> Result<CarMatchResult, TuhucarError> {
+pub async fn match_car(client: &McpClient, query: &str) -> Result<CarMatchResult, TuhucarError> {
     let body = client
-        .get("/api/v1/car/match", &[("q", query)])
+        .call_tool("car_match", serde_json::json!({ "query": query }))
         .await?;
 
     let candidates: Vec<CarMatchCandidate> = serde_json::from_str(&body)
-        .map_err(|e| TuhucarError::ApiError {
-            status: 200,
-            code: "PARSE_ERROR".into(),
+        .map_err(|e| TuhucarError::McpError {
+            code: -1,
             message: format!("Failed to parse car match response: {}", e),
         })?;
 

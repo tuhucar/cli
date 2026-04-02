@@ -5,16 +5,42 @@ use async_trait::async_trait;
 use tuhucar_core::command::Command;
 use tuhucar_core::ErrorSchemaEntry;
 use tuhucar_core::error::TuhucarError;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use crate::models::{CarMatchInput, CarMatchResult};
 
 pub struct CarCommand {
-    client: HttpClient,
+    client: McpClient,
 }
 
 impl CarCommand {
-    pub fn new(client: HttpClient) -> Self {
+    pub fn new(client: McpClient) -> Self {
         Self { client }
+    }
+
+    /// Generate schema without requiring a live MCP connection.
+    pub fn schema_static() -> tuhucar_core::CommandSchema {
+        use tuhucar_core::types::CommandSchema;
+        use tuhucar_core::Response;
+        CommandSchema {
+            name: "car.match".to_string(),
+            description: "模糊匹配五级车型".to_string(),
+            input: serde_json::to_value(schemars::schema_for!(CarMatchInput)).unwrap(),
+            wire_output: serde_json::to_value(
+                schemars::schema_for!(Response<CarMatchResult>),
+            ).unwrap(),
+            errors: vec![
+                ErrorSchemaEntry {
+                    code: "CAR_NOT_FOUND".into(),
+                    description: "未找到匹配的车型".into(),
+                    retryable: false,
+                },
+                ErrorSchemaEntry {
+                    code: "MCP_ERROR".into(),
+                    description: "MCP 服务调用失败".into(),
+                    retryable: true,
+                },
+            ],
+        }
     }
 }
 
@@ -34,8 +60,8 @@ impl Command for CarCommand {
                 retryable: false,
             },
             ErrorSchemaEntry {
-                code: "NETWORK_ERROR".into(),
-                description: "网络连接失败".into(),
+                code: "MCP_ERROR".into(),
+                description: "MCP 服务调用失败".into(),
                 retryable: true,
             },
         ]

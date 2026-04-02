@@ -5,16 +5,37 @@ use async_trait::async_trait;
 use tuhucar_core::command::Command;
 use tuhucar_core::ErrorSchemaEntry;
 use tuhucar_core::error::TuhucarError;
-use tuhucar_core::http::HttpClient;
+use tuhucar_core::mcp::McpClient;
 use crate::models::{KnowledgeQueryInput, KnowledgeQueryOutput};
 
 pub struct KnowledgeCommand {
-    client: HttpClient,
+    client: McpClient,
 }
 
 impl KnowledgeCommand {
-    pub fn new(client: HttpClient) -> Self {
+    pub fn new(client: McpClient) -> Self {
         Self { client }
+    }
+
+    /// Generate schema without requiring a live MCP connection.
+    pub fn schema_static() -> tuhucar_core::CommandSchema {
+        use tuhucar_core::types::CommandSchema;
+        use tuhucar_core::Response;
+        CommandSchema {
+            name: "knowledge.query".to_string(),
+            description: "查询养车知识".to_string(),
+            input: serde_json::to_value(schemars::schema_for!(KnowledgeQueryInput)).unwrap(),
+            wire_output: serde_json::to_value(
+                schemars::schema_for!(Response<KnowledgeQueryOutput>),
+            ).unwrap(),
+            errors: vec![
+                ErrorSchemaEntry {
+                    code: "MCP_ERROR".into(),
+                    description: "MCP 服务调用失败".into(),
+                    retryable: true,
+                },
+            ],
+        }
     }
 }
 
@@ -29,14 +50,9 @@ impl Command for KnowledgeCommand {
     fn error_schemas(&self) -> Vec<ErrorSchemaEntry> {
         vec![
             ErrorSchemaEntry {
-                code: "NETWORK_ERROR".into(),
-                description: "网络连接失败".into(),
+                code: "MCP_ERROR".into(),
+                description: "MCP 服务调用失败".into(),
                 retryable: true,
-            },
-            ErrorSchemaEntry {
-                code: "API_ERROR".into(),
-                description: "后端服务错误".into(),
-                retryable: false,
             },
         ]
     }
