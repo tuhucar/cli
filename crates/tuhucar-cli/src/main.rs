@@ -35,17 +35,23 @@ fn pre_scan_format() -> bool {
 }
 
 /// Build ResponseMeta with version and any pending update notices.
+/// Does NOT mark as notified — caller must call mark_notices_notified() after output.
 fn build_meta() -> ResponseMeta {
     let mut notices = Vec::new();
     if let Some(notice) = update::pending_notice() {
-        notices.push(notice.clone());
-        // Mark as notified so we don't repeat
-        let Notice::Update { ref latest, .. } = notice;
-        update::mark_notified(latest);
+        notices.push(notice);
     }
     ResponseMeta {
         version: VERSION.to_string(),
         notices,
+    }
+}
+
+/// Mark all notices in meta as notified so they won't repeat.
+fn mark_notices_notified(meta: &ResponseMeta) {
+    for notice in &meta.notices {
+        let Notice::Update { ref latest, .. } = notice;
+        update::mark_notified(latest);
     }
 }
 
@@ -95,7 +101,7 @@ async fn main() {
 
     if let Err(e) = commands::run(cli.command, format, cli.dry_run, cli.verbose, meta.clone()).await {
         let api_err: ApiError = e.into();
-        let resp: Response<()> = Response::error(api_err, Some(meta));
+        let resp: Response<()> = Response::error(api_err, Some(meta.clone()));
         match format {
             OutputFormat::Json => {
                 println!("{}", serde_json::to_string_pretty(&resp).unwrap());
@@ -107,14 +113,18 @@ async fn main() {
                 }
             }
         }
+        mark_notices_notified(&meta);
         std::process::exit(1);
     }
 
     // For markdown mode, print update notices to stderr after command output
     if format == OutputFormat::Markdown {
-        if let Some(notice) = update::pending_notice() {
-            let Notice::Update { message, .. } = notice;
+        for notice in &meta.notices {
+            let Notice::Update { ref message, .. } = notice;
             eprintln!("\n{}", message);
         }
     }
+
+    // Mark notified after all output is done
+    mark_notices_notified(&meta);
 }

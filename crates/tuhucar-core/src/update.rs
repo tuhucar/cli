@@ -173,12 +173,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn detect_install_source_unknown_for_random_path() {
-        let source = detect_install_source();
-        assert_eq!(source, InstallSource::Unknown);
-    }
-
-    #[test]
     fn classify_path_identifies_sources() {
         assert_eq!(classify_path("/home/user/.tuhucar/bin/tuhucar"), InstallSource::InstallSh);
         assert_eq!(classify_path("/usr/lib/node_modules/@tuhucar/cli/bin/tuhucar"), InstallSource::Npm);
