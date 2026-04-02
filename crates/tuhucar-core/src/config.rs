@@ -11,6 +11,7 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiConfig {
+    #[serde(alias = "base_url")]
     pub endpoint: String,
     #[serde(default = "default_timeout")]
     pub timeout: u64,
@@ -114,6 +115,16 @@ endpoint = "https://api.example.com"
         let toml_str = "not valid toml [[[";
         let result: Result<Config, _> = toml::from_str(toml_str);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_legacy_base_url_as_endpoint() {
+        let toml_str = r#"
+[api]
+base_url = "https://legacy.example.com"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.api.endpoint, "https://legacy.example.com");
     }
 
     #[test]

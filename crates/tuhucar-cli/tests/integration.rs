@@ -152,7 +152,7 @@ fn config_show_json_returns_envelope() {
     std::fs::create_dir_all(&tuhucar_dir).unwrap();
     std::fs::write(
         tuhucar_dir.join("config.toml"),
-        "[api]\nbase_url = \"https://test.example.com\"\n",
+        "[api]\nendpoint = \"https://test.example.com\"\n",
     ).unwrap();
     let output = tuhucar()
         .args(["--format", "json", "config", "show"])
@@ -163,7 +163,7 @@ fn config_show_json_returns_envelope() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert!(json["data"].is_object());
-    assert_eq!(json["data"]["api"]["base_url"], "https://test.example.com");
+    assert_eq!(json["data"]["api"]["endpoint"], "https://test.example.com");
     cleanup(&tmp);
 }
 
@@ -180,6 +180,28 @@ fn json_error_response_includes_meta_version() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert!(json["meta"]["version"].is_string());
+    cleanup(&tmp);
+}
+
+// Verify old base_url configs still load (backwards compatibility)
+#[test]
+fn config_show_accepts_legacy_base_url() {
+    let tmp = make_temp_home("legacy-config");
+    let tuhucar_dir = tmp.join(".tuhucar");
+    std::fs::create_dir_all(&tuhucar_dir).unwrap();
+    std::fs::write(
+        tuhucar_dir.join("config.toml"),
+        "[api]\nbase_url = \"https://legacy.example.com\"\n",
+    ).unwrap();
+    let output = tuhucar()
+        .args(["--format", "json", "config", "show"])
+        .env("HOME", &tmp)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(json["data"]["api"]["endpoint"], "https://legacy.example.com");
     cleanup(&tmp);
 }
 
