@@ -46,48 +46,27 @@ mod tests {
     }
 
     #[test]
-    fn knowledge_output_miniprogram_badge() {
+    fn knowledge_output_markdown_is_plain_reply() {
         let output = KnowledgeQueryOutput {
-            answer: "答案".into(),
-            links: vec![ExternalLink {
-                title: "小程序入口".into(),
-                url: "weixin://miniprogram/abc".into(),
-                link_type: LinkType::MiniProgram,
-            }],
-            related_questions: vec![],
+            reply: "简单答案".into(),
+            session_id: "s".into(),
+            msg_id: "m".into(),
         };
-        let md = output.to_markdown();
-        assert!(md.contains("[小程序]"));
-        assert!(md.contains("[小程序入口](weixin://miniprogram/abc)"));
-    }
-
-    #[test]
-    fn knowledge_output_no_links_no_questions() {
-        let output = KnowledgeQueryOutput {
-            answer: "简单答案".into(),
-            links: vec![],
-            related_questions: vec![],
-        };
-        let md = output.to_markdown();
-        assert_eq!(md, "简单答案\n");
-        assert!(!md.contains("相关链接"));
-        assert!(!md.contains("相关问题"));
+        // Markdown rendering is just the reply, untouched.
+        assert_eq!(output.to_markdown(), "简单答案");
     }
 
     #[test]
     fn knowledge_output_to_json_roundtrips() {
         let output = KnowledgeQueryOutput {
-            answer: "每5000公里".into(),
-            links: vec![ExternalLink {
-                title: "t".into(),
-                url: "u".into(),
-                link_type: LinkType::H5,
-            }],
-            related_questions: vec!["q1".into()],
+            reply: "每5000公里".into(),
+            session_id: "sess-1".into(),
+            msg_id: "msg-1".into(),
         };
         let json_str = output.to_json();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
-        assert_eq!(parsed["answer"], "每5000公里");
-        assert_eq!(parsed["links"][0]["link_type"], "H5");
+        assert_eq!(parsed["reply"], "每5000公里");
+        assert_eq!(parsed["session_id"], "sess-1");
+        assert_eq!(parsed["msg_id"], "msg-1");
     }
 }
