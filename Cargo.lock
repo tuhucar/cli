@@ -1531,7 +1531,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml",
- "tuhucar-car",
  "tuhucar-core",
  "tuhucar-knowledge",
 ]

@@ -1,32 +1,24 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tuhucar_core::Render;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct KnowledgeQueryInput {
-    pub car_id: String,
+    /// 用户问题
     pub question: String,
+    /// 可选会话 ID（用于多轮对话），不传则自动生成
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct KnowledgeQueryOutput {
-    pub answer: String,
-    pub links: Vec<ExternalLink>,
-    #[serde(default)]
-    pub related_questions: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
-pub struct ExternalLink {
-    pub title: String,
-    pub url: String,
-    pub link_type: LinkType,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
-pub enum LinkType {
-    MiniProgram,
-    H5,
+    /// 模型回答
+    pub reply: String,
+    /// 会话 ID
+    pub session_id: String,
+    /// 消息 ID
+    pub msg_id: String,
 }
 
 impl Render for KnowledgeQueryOutput {
@@ -35,24 +27,7 @@ impl Render for KnowledgeQueryOutput {
     }
 
     fn to_markdown(&self) -> String {
-        let mut out = format!("{}\n", self.answer);
-        if !self.links.is_empty() {
-            out.push_str("\n**相关链接：**\n");
-            for link in &self.links {
-                let badge = match link.link_type {
-                    LinkType::MiniProgram => "[小程序]",
-                    LinkType::H5 => "[H5]",
-                };
-                out.push_str(&format!("- {} [{}]({})\n", badge, link.title, link.url));
-            }
-        }
-        if !self.related_questions.is_empty() {
-            out.push_str("\n**相关问题：**\n");
-            for q in &self.related_questions {
-                out.push_str(&format!("- {}\n", q));
-            }
-        }
-        out
+        self.reply.clone()
     }
 }
 
@@ -61,20 +36,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn knowledge_output_markdown_renders_links() {
+    fn knowledge_output_markdown_returns_reply() {
         let output = KnowledgeQueryOutput {
-            answer: "建议每5000公里更换一次机油".into(),
-            links: vec![ExternalLink {
-                title: "预约保养".into(),
-                url: "https://m.tuhu.cn/maintenance".into(),
-                link_type: LinkType::H5,
-            }],
-            related_questions: vec!["机油品牌推荐".into()],
+            reply: "建议每5000公里更换一次机油".into(),
+            session_id: "s1".into(),
+            msg_id: "m1".into(),
         };
-        let md = output.to_markdown();
-        assert!(md.contains("5000公里"));
-        assert!(md.contains("[H5]"));
-        assert!(md.contains("机油品牌推荐"));
+        assert!(output.to_markdown().contains("5000公里"));
     }
 
     #[test]

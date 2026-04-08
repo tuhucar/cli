@@ -1,6 +1,6 @@
 ---
-name: tuhucar-car-assistant
-description: Answer car maintenance questions using TuhuCar CLI for car model matching and knowledge querying
+name: tuhucar-knowledge-assistant
+description: Answer car maintenance and ownership questions by calling the TuhuCar CLI knowledge query
 allowed-tools:
   - Bash(tuhucar *)
 ---
@@ -11,59 +11,85 @@ allowed-tools:
 
 ## What This Skill Does
 
-Answers car maintenance questions by:
-1. Matching the user's car description to an internal car model ID
-2. Querying the knowledge base with the matched car model
-3. Presenting the answer with relevant links
+Routes the user's car-ownership / maintenance question to the TuhuCar knowledge gateway via the `tuhucar` CLI and renders the reply.
+
+The current build of `tuhucar` only exposes **knowledge query** as a business command. There is no separate "match car" step — pass the question (with any car context the user gave you) directly to `tuhucar knowledge query`.
 
 ## Workflow
 
 ### Step 1: Understand the Question
 
-Extract from the user's message:
-- **Car description** (brand, series, year, displacement, trim level) — any combination
-- **Maintenance question** (e.g., "多久换机油", "轮胎气压多少", "保养周期")
+Treat the user's message as the `question`. Inline any car context the user mentioned (brand / series / year / 排量 / 配置) into the question string itself, e.g. `"2024款大众朗逸1.5L 自动挡 全合成机油多久换一次？"`. Don't strip it out — the upstream model uses it for personalised answers.
 
-If the car description is missing or ambiguous, ask the user to provide it.
+If the user only asks a generic question without car context, ask them once for **brand / series / year** so the answer can be tailored. If they decline, just proceed with the generic question.
 
-### Step 2: Match Car Model
+### Step 2: Call the CLI
 
-```bash
-tuhucar car match "<car description>" --format json
-```
-
-**Handle results:**
-- **Single match (confidence > 0.8):** Use that `car_id`, proceed to Step 3
-- **Multiple matches:** Present the top candidates to the user, ask them to choose
-- **Error `CAR_NOT_FOUND`:** Ask the user for a more precise description (brand + series + year)
-
-### Step 3: Query Knowledge
+For multi-turn dialogs, reuse the `session_id` returned from the previous reply so the gateway keeps conversation state:
 
 ```bash
-tuhucar knowledge query --car-id <car_id> --format json "<question>"
+# First turn
+tuhucar knowledge query --format json "<question>"
+
+# Follow-up turn (reuse the session_id from the previous response)
+tuhucar knowledge query --format json --session-id <session_id> "<follow-up question>"
 ```
 
-### Step 4: Present Answer
+Always use `--format json` when you need to parse the result. Use the markdown default only when piping straight to the user without any post-processing.
 
-Format the response naturally:
-1. State the answer clearly
-2. If links are present, include them as clickable references
-3. If `related_questions` are present, suggest them as follow-up topics
-4. Credit the source: "来自途虎养车"
+### Step 3: Parse the Response
 
-### Step 5: Check for Updates
+Successful JSON envelope:
 
-If `meta.notices` contains an update notification, append a note to the user.
+```json
+{
+  "data": {
+    "reply": "...markdown answer from the gateway...",
+    "session_id": "1743672000000",
+    "msg_id": "1743672000000-1"
+  },
+  "error": null,
+  "meta": { "version": "0.1.0", "notices": [] }
+}
+```
+
+- `data.reply` is already markdown — present it (or paraphrase it) to the user.
+- Cache `data.session_id` **for the duration of the current conversation only** so follow-up turns can pass `--session-id`. Never persist it across conversations.
+- `msg_id` is for tracing; you usually don't need to surface it.
+
+### Step 4: Present the Answer
+
+1. Show `data.reply` to the user. It's already structured markdown — preserve headings, bullets and emojis.
+2. End with the source attribution: **来自途虎养车**.
+3. If `meta.notices` contains an update notice, append it after the answer.
+
+### Step 5: Error Handling
+
+See `../tuhucar-shared/SKILL.md` for the full decision matrix. Most common cases:
+
+| `error.code` | What to do |
+|---|---|
+| `MCP_ERROR` (retryable) | Retry once. If it still fails, surface the message. |
+| `MCP_ERROR` with `参数错误` | Re-check the question text — gateway may have rejected empty / malformed input. |
+| `CONFIG_MISSING` | Run `tuhucar config init`, then retry. |
+| `NETWORK_ERROR` | Retry once, then ask the user to try again. |
 
 ## Example Interaction
 
-**User:** 我的2024款朗逸1.5L多久换一次机油？
+**User:** 我的2024款朗逸1.5L，全合成机油多久换一次？
 
 **Assistant actions:**
-1. `tuhucar car match "2024款朗逸1.5L" --format json` → gets car_id
-2. `tuhucar knowledge query --car-id <id> "多久换一次机油" --format json` → gets answer
-3. Presents: "根据途虎养车的建议，您的2024款大众朗逸1.5L建议每5000公里或6个月更换一次机油..."
+1. Run `tuhucar knowledge query --format json "2024款大众朗逸1.5L 全合成机油多久换一次？"`
+2. Read `data.reply` from the JSON envelope
+3. Remember `data.session_id` for the conversation
+4. Present the markdown reply to the user, append "来自途虎养车"
+
+**Follow-up — User:** 那刹车油呢？
+
+**Assistant actions:**
+1. Run `tuhucar knowledge query --format json --session-id <previous session_id> "那刹车油多久换一次？"`
+2. Present the new `data.reply`
 
 ## Command Reference
 
-See `references/command-reference.md` for full CLI command documentation.
+See `references/command-reference.md` for the full CLI surface.

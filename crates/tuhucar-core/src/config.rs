@@ -71,12 +71,30 @@ impl Config {
     pub fn default_config() -> Self {
         Self {
             api: ApiConfig {
-                endpoint: "https://api.tuhucar.com".into(),
+                endpoint: default_endpoint(),
                 timeout: 30,
             },
             output: OutputConfig::default(),
         }
     }
+}
+
+/// Default MCP gateway endpoint.
+///
+/// Resolution order:
+/// 1. `TUHUCAR_ENDPOINT` env var at runtime (overrides everything, useful for ad-hoc switching)
+/// 2. `TUHUCAR_DEFAULT_ENDPOINT` env var captured at build time (set in CI per environment)
+/// 3. Hard-coded production fallback
+pub fn default_endpoint() -> String {
+    if let Ok(v) = std::env::var("TUHUCAR_ENDPOINT") {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    option_env!("TUHUCAR_DEFAULT_ENDPOINT")
+        .filter(|s| !s.is_empty())
+        .unwrap_or("https://gateway.tuhu.cn/mcp/gateway/v1")
+        .to_string()
 }
 
 #[cfg(test)]
@@ -130,7 +148,7 @@ base_url = "https://legacy.example.com"
     #[test]
     fn default_config_has_expected_values() {
         let config = Config::default_config();
-        assert_eq!(config.api.endpoint, "https://api.tuhucar.com");
+        assert_eq!(config.api.endpoint, "https://gateway.tuhu.cn/mcp/gateway/v1");
         assert_eq!(config.api.timeout, 30);
         assert_eq!(config.output.default_format, "markdown");
     }

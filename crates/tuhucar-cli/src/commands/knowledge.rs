@@ -10,11 +10,11 @@ use tuhucar_knowledge::models::KnowledgeQueryInput;
 pub enum KnowledgeAction {
     /// Query car maintenance knowledge
     Query {
-        /// Five-level car model ID
-        #[arg(long)]
-        car_id: String,
         /// Question to ask
         question: String,
+        /// Optional session id for multi-turn dialog
+        #[arg(long)]
+        session_id: Option<String>,
     },
     /// Show knowledge query command schema (for LLM introspection)
     Schema,
@@ -33,18 +33,24 @@ pub async fn run(
             println!("{}", serde_json::to_string_pretty(&schema).unwrap());
             Ok(())
         }
-        KnowledgeAction::Query { car_id, question } => {
+        KnowledgeAction::Query {
+            question,
+            session_id,
+        } => {
             if dry_run {
                 println!(
-                    "MCP tools/call knowledge_query {{\"car_id\":\"{}\",\"question\":\"{}\"}}",
-                    car_id, question
+                    "MCP tools/call mkt-intelligent-skill-dialogue {{\"question\":\"{}\",\"session_id\":{:?}}}",
+                    question, session_id
                 );
                 return Ok(());
             }
             let config = Config::load()?;
             let client = McpClient::connect(&config).await?;
             let cmd = KnowledgeCommand::new(client);
-            let input = KnowledgeQueryInput { car_id, question };
+            let input = KnowledgeQueryInput {
+                question,
+                session_id,
+            };
             let result = cmd.execute(input).await?;
             let resp = Response::success(result, Some(meta));
             println!("{}", format_response(&resp, format));

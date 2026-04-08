@@ -35,9 +35,10 @@ fn version_flag_shows_version() {
 #[test]
 fn missing_subcommand_in_json_returns_envelope() {
     let output = tuhucar()
-        .args(["--format", "json", "car"])
+        .args(["--format", "json", "knowledge"])
         .output()
         .unwrap();
+    // clap will error because 'knowledge' needs a subcommand
     assert!(!output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
@@ -46,21 +47,10 @@ fn missing_subcommand_in_json_returns_envelope() {
 
 #[test]
 fn missing_subcommand_without_json_shows_help() {
-    let output = tuhucar().arg("car").output().unwrap();
+    let output = tuhucar().arg("knowledge").output().unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("Usage") || stderr.contains("usage"));
-}
-
-#[test]
-fn car_schema_returns_valid_json() {
-    let output = tuhucar().args(["car", "schema"]).output().unwrap();
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(json["name"], "car.match");
-    assert!(json["input"].is_object());
-    assert!(json["wire_output"].is_object());
 }
 
 #[test]
@@ -75,12 +65,12 @@ fn knowledge_schema_returns_valid_json() {
 #[test]
 fn dry_run_does_not_make_request() {
     let output = tuhucar()
-        .args(["--dry-run", "car", "match", "朗逸"])
+        .args(["--dry-run", "knowledge", "query", "机油多久换"])
         .output()
         .unwrap();
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("MCP tools/call car_match"));
+    assert!(stdout.contains("MCP tools/call mkt-intelligent-skill-dialogue"));
 }
 
 // P2 fix: use isolated temp dir instead of hardcoded /tmp path

@@ -10,7 +10,7 @@ use crate::error::TuhucarError;
 struct JsonRpcRequest<'a> {
     jsonrpc: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<u64>,
+    id: Option<String>,
     method: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     params: Option<serde_json::Value>,
@@ -19,10 +19,13 @@ struct JsonRpcRequest<'a> {
 #[derive(Deserialize)]
 struct JsonRpcResponse {
     #[allow(dead_code)]
+    #[serde(default)]
     jsonrpc: String,
     #[allow(dead_code)]
-    id: Option<u64>,
+    #[serde(default)]
+    id: Option<serde_json::Value>,
     result: Option<serde_json::Value>,
+    #[serde(default)]
     error: Option<JsonRpcError>,
 }
 
@@ -32,21 +35,6 @@ struct JsonRpcError {
     message: String,
     #[allow(dead_code)]
     data: Option<serde_json::Value>,
-}
-
-#[derive(Serialize)]
-struct InitializeParams {
-    #[serde(rename = "protocolVersion")]
-    protocol_version: &'static str,
-    capabilities: serde_json::Value,
-    #[serde(rename = "clientInfo")]
-    client_info: ClientInfo,
-}
-
-#[derive(Serialize)]
-struct ClientInfo {
-    name: &'static str,
-    version: &'static str,
 }
 
 #[derive(Serialize)]
@@ -76,6 +64,50 @@ pub struct McpClient {
     session_id: Option<String>,
 }
 
+fn parse_jsonrpc_body(body: &str) -> Result<JsonRpcResponse, TuhucarError> {
+    let trimmed = body.trim_start();
+    // Try plain JSON first.
+    if trimmed.starts_with('{') {
+        return serde_json::from_str(trimmed).map_err(|e| TuhucarError::McpError {
+            code: -1,
+            message: format!("Failed to parse JSON-RPC response: {}: {}", e, body),
+        });
+    }
+    // Otherwise, parse as SSE: scan `data:` lines, return the last one whose
+    // payload parses as a JSON-RPC envelope containing a result or error.
+    let mut last: Option<JsonRpcResponse> = None;
+    for line in body.lines() {
+        let payload = match line.strip_prefix("data:") {
+            Some(p) => p.trim(),
+            None => continue,
+        };
+        if payload.is_empty() || payload == "[DONE]" {
+            continue;
+        }
+        if let Ok(resp) = serde_json::from_str::<JsonRpcResponse>(payload) {
+            // Skip progress-only frames.
+            let is_progress = resp
+                .result
+                .as_ref()
+                .and_then(|r| r.get("progress"))
+                .is_some()
+                && resp
+                    .result
+                    .as_ref()
+                    .and_then(|r| r.get("content"))
+                    .is_none();
+            if is_progress {
+                continue;
+            }
+            last = Some(resp);
+        }
+    }
+    last.ok_or_else(|| TuhucarError::McpError {
+        code: -1,
+        message: format!("No JSON-RPC payload found in SSE stream: {}", body),
+    })
+}
+
 impl McpClient {
     /// Connect to an MCP server: send initialize + initialized notification.
     pub async fn connect(config: &Config) -> Result<Self, TuhucarError> {
@@ -85,9 +117,16 @@ impl McpClient {
             .build()
             .expect("Failed to build HTTP client");
 
+        // Allow runtime override (e.g. dev pointing at a test gateway) without
+        // editing the on-disk config file.
+        let endpoint = std::env::var("TUHUCAR_ENDPOINT")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| config.api.endpoint.clone());
+
         let mut mcp = Self {
             client,
-            endpoint: config.api.endpoint.clone(),
+            endpoint,
             next_id: AtomicU64::new(1),
             session_id: None,
         };
@@ -97,37 +136,32 @@ impl McpClient {
     }
 
     async fn initialize(&mut self) -> Result<(), TuhucarError> {
-        let params = InitializeParams {
-            protocol_version: "2025-03-26",
-            capabilities: serde_json::json!({}),
-            client_info: ClientInfo {
-                name: "tuhucar-cli",
-                version: env!("CARGO_PKG_VERSION"),
-            },
-        };
+        // Per gateway protocol, `initialize` is sent without params; the
+        // session id is returned in the response body.
+        let (resp, header_session_id) = self.send_request("initialize", None).await?;
 
-        let (resp, session_id) = self
-            .send_request("initialize", Some(serde_json::to_value(params).unwrap()))
-            .await?;
-
-        if let Some(sid) = session_id {
+        if let Some(sid) = header_session_id {
             self.session_id = Some(sid);
         }
 
-        // Verify server supports tools
         if let Some(result) = &resp.result {
-            let caps = &result["capabilities"];
-            if caps.get("tools").is_none() {
+            if let Some(sid) = result.get("sessionId").and_then(|v| v.as_str()) {
+                self.session_id = Some(sid.to_string());
+            }
+            if result.get("capabilities").and_then(|c| c.get("tools")).is_none() {
                 return Err(TuhucarError::McpError {
                     code: -1,
-                    message: "MCP server does not support tools capability".into(),
+                    message: "MCP server does not advertise tools capability".into(),
                 });
             }
         }
 
-        // Send initialized notification (no id, no response expected)
-        self.send_notification("notifications/initialized", None)
-            .await?;
+        if self.session_id.is_none() {
+            return Err(TuhucarError::McpError {
+                code: -1,
+                message: "MCP server did not return a sessionId".into(),
+            });
+        }
 
         Ok(())
     }
@@ -199,7 +233,7 @@ impl McpClient {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let req = JsonRpcRequest {
             jsonrpc: "2.0",
-            id: Some(id),
+            id: Some(id.to_string()),
             method,
             params,
         };
@@ -208,7 +242,8 @@ impl McpClient {
             .client
             .post(&self.endpoint)
             .header("Content-Type", "application/json")
-            .header("Accept", "application/json");
+            .header("Accept", "application/json, text/event-stream")
+            .header("Connection", "keep-alive");
 
         if let Some(sid) = &self.session_id {
             http_req = http_req.header("Mcp-Session-Id", sid);
@@ -235,12 +270,7 @@ impl McpClient {
             });
         }
 
-        let rpc_resp: JsonRpcResponse = serde_json::from_str(&body).map_err(|e| {
-            TuhucarError::McpError {
-                code: -1,
-                message: format!("Failed to parse JSON-RPC response: {}", e),
-            }
-        })?;
+        let rpc_resp = parse_jsonrpc_body(&body)?;
 
         if let Some(err) = &rpc_resp.error {
             return Err(TuhucarError::McpError {
@@ -250,42 +280,6 @@ impl McpClient {
         }
 
         Ok((rpc_resp, session_id))
-    }
-
-    async fn send_notification(
-        &self,
-        method: &str,
-        params: Option<serde_json::Value>,
-    ) -> Result<(), TuhucarError> {
-        let req = JsonRpcRequest {
-            jsonrpc: "2.0",
-            id: None,
-            method,
-            params,
-        };
-
-        let mut http_req = self
-            .client
-            .post(&self.endpoint)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json");
-
-        if let Some(sid) = &self.session_id {
-            http_req = http_req.header("Mcp-Session-Id", sid);
-        }
-
-        let resp = http_req.json(&req).send().await?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            return Err(TuhucarError::McpError {
-                code: status.as_u16() as i64,
-                message: format!("Notification failed HTTP {}: {}", status.as_u16(), body),
-            });
-        }
-
-        Ok(())
     }
 
     pub fn endpoint(&self) -> &str {
@@ -298,29 +292,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn json_rpc_request_serializes_correctly() {
+    fn json_rpc_request_serializes_with_string_id() {
         let req = JsonRpcRequest {
             jsonrpc: "2.0",
-            id: Some(1),
+            id: Some("1".into()),
             method: "tools/call",
-            params: Some(serde_json::json!({"name": "car_match"})),
+            params: Some(serde_json::json!({"name": "x"})),
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["jsonrpc"], "2.0");
-        assert_eq!(json["id"], 1);
+        assert_eq!(json["id"], "1");
         assert_eq!(json["method"], "tools/call");
     }
 
     #[test]
-    fn notification_has_no_id() {
-        let req = JsonRpcRequest {
-            jsonrpc: "2.0",
-            id: None,
-            method: "notifications/initialized",
-            params: None,
-        };
-        let json = serde_json::to_value(&req).unwrap();
-        assert!(json.get("id").is_none());
-        assert!(json.get("params").is_none());
+    fn parses_plain_json_body() {
+        let body = r#"{"jsonrpc":"2.0","id":"1","result":{"sessionId":"abc","capabilities":{"tools":{}}}}"#;
+        let resp = parse_jsonrpc_body(body).unwrap();
+        assert_eq!(
+            resp.result.unwrap().get("sessionId").unwrap().as_str().unwrap(),
+            "abc"
+        );
+    }
+
+    #[test]
+    fn parses_sse_body_skipping_progress_and_done() {
+        let body = "id: 1\nevent: message\ndata: {\"result\":{\"progress\":1.0,\"message\":\"x\"},\"id\":\"1\",\"jsonrpc\":\"2.0\"}\n\nid: 2\nevent: message\ndata: {\"result\":{\"isError\":false,\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},\"id\":\"1\",\"jsonrpc\":\"2.0\"}\n\ndata: [DONE]\n";
+        let resp = parse_jsonrpc_body(body).unwrap();
+        let result = resp.result.unwrap();
+        assert!(result.get("content").is_some());
+        assert_eq!(result["content"][0]["text"], "hello");
     }
 }

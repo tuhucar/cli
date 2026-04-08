@@ -1,4 +1,3 @@
-pub mod car;
 pub mod config;
 pub mod knowledge;
 pub mod skill;
@@ -8,11 +7,6 @@ use tuhucar_core::{OutputFormat, ResponseMeta, TuhucarError};
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Car model operations
-    Car {
-        #[command(subcommand)]
-        action: car::CarAction,
-    },
     /// Knowledge query operations
     Knowledge {
         #[command(subcommand)]
@@ -38,7 +32,6 @@ pub async fn run(
     meta: ResponseMeta,
 ) -> Result<(), TuhucarError> {
     match cmd {
-        Commands::Car { action } => car::run(action, format, dry_run, verbose, meta).await,
         Commands::Knowledge { action } => knowledge::run(action, format, dry_run, verbose, meta).await,
         Commands::Config { action } => config::run(action, format, meta).await,
         Commands::Skill { action } => skill::run(action, format).await,

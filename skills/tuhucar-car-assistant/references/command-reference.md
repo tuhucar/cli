@@ -1,96 +1,73 @@
 # TuhuCar CLI Command Reference
 
+The current build only exposes one business command (`knowledge query`) plus local utility commands (`config`, `skill`).
+
 ## Global Flags
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--format json\|markdown` | Output format | `markdown` |
-| `--dry-run` | Preview request without sending | off |
-| `--verbose` | Detailed output | off |
+| `--dry-run` | Preview the upstream tool call without sending it | off |
+| `--verbose` | Verbose output | off |
 | `--version` | Show version | - |
 | `--help` | Show help | - |
 
-## Commands
+## Environment
 
-### `tuhucar car match <query>`
+| Variable | Effect |
+|---|---|
+| `TUHUCAR_ENDPOINT` | Override the MCP gateway endpoint at runtime (takes precedence over `~/.tuhucar/config.toml`). Useful for pointing at the test gateway without editing config. |
 
-Match a car description to internal car model IDs.
+## `tuhucar knowledge query <question> [--session-id <id>]`
+
+Send a maintenance / ownership question to the TuhuCar knowledge gateway.
 
 **Arguments:**
-- `query` (required): Car description, e.g. "2024款朗逸1.5L自动舒适版"
+- `question` (positional, required) — natural-language question. Inline car context (brand / series / year / 排量 / 配置) into this string when known.
+- `--session-id <id>` (optional) — reuse a session id from a previous reply to continue a multi-turn dialog. If omitted, a new session is created automatically.
 
-**JSON Output (success):**
+**JSON envelope (success):**
+
 ```json
 {
   "data": {
-    "candidates": [
-      {
-        "car_id": "12345",
-        "brand": "大众",
-        "series": "朗逸",
-        "year": "2024",
-        "displacement": "1.5L",
-        "model": "自动舒适版",
-        "confidence": 0.95
-      }
-    ],
-    "total_count": 1
-  }
+    "reply": "...markdown answer...",
+    "session_id": "1743672000000",
+    "msg_id": "1743672000000-1"
+  },
+  "error": null,
+  "meta": { "version": "0.1.0", "notices": [] }
 }
 ```
 
-**Possible errors:** `CAR_NOT_FOUND`, `NETWORK_ERROR`, `CONFIG_MISSING`
+**Possible errors:**
+- `MCP_ERROR` — gateway rejected the call or returned a non-success code. Body holds the upstream message.
+- `CONFIG_MISSING` — no `~/.tuhucar/config.toml`; run `tuhucar config init` (or set `TUHUCAR_ENDPOINT`).
+- `NETWORK_ERROR` — transport-level failure (timeout, DNS, etc.).
 
-### `tuhucar car schema`
+## `tuhucar knowledge schema`
 
-Output the car match command's JSON Schema for LLM introspection. Does not require configuration.
+Print the JSON Schema for the knowledge query input/output and the wire envelope. Useful for LLM self-discovery. Does not require config.
 
-### `tuhucar knowledge query --car-id <id> <question>`
-
-Query car maintenance knowledge for a specific car model.
-
-**Arguments:**
-- `--car-id` (required): Five-level car model ID from `car match`
-- `question` (required): Maintenance question
-
-**JSON Output (success):**
-```json
-{
-  "data": {
-    "answer": "建议每5000公里或6个月更换一次机油...",
-    "links": [
-      {
-        "title": "预约保养",
-        "url": "https://m.tuhu.cn/maintenance",
-        "link_type": "H5"
-      }
-    ],
-    "related_questions": [
-      "机油品牌推荐",
-      "保养费用参考"
-    ]
-  }
-}
+```bash
+tuhucar knowledge schema
 ```
 
-**Possible errors:** `NETWORK_ERROR`, `API_ERROR`, `CONFIG_MISSING`
+## `tuhucar config init`
 
-### `tuhucar knowledge schema`
+Create the default configuration at `~/.tuhucar/config.toml`. Endpoint defaults to the production MCP gateway; override with `TUHUCAR_ENDPOINT` or by editing the file directly.
 
-Output the knowledge query command's JSON Schema. Does not require configuration.
+## `tuhucar config show`
 
-### `tuhucar config init`
+Print the current configuration.
 
-Create default configuration at `~/.tuhucar/config.toml`.
+## `tuhucar skill install` / `tuhucar skill uninstall`
 
-### `tuhucar config show`
+Detect installed AI platforms (Claude Code, Cursor, Codex, OpenCode, Gemini) and register / unregister the tuhucar skill files. Local-only operation, no network.
 
-Display current configuration.
+## Notes for LLM callers
 
-### `tuhucar skill install`
-
-Detect installed AI platforms and register tuhucar skills.
-
-### `tuhucar skill uninstall`
-
-Remove tuhucar skills from AI platforms.
+- Always pass `--format json` when you need to parse the result programmatically.
+- The `reply` field is already markdown — render it as-is when surfacing the answer.
+- `session_id` is conversation-scoped state. Reuse it for follow-up turns in the same conversation, then discard.
+- This build does **not** include any car-match command. Don't try `tuhucar car ...` — it doesn't exist in the released binary.

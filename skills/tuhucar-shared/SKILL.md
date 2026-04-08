@@ -8,51 +8,57 @@ description: Shared rules and conventions for all tuhucar skills
 ## Prerequisites
 
 Before using any tuhucar command:
-1. Verify `tuhucar` is installed: run `tuhucar --version`
+
+1. Verify `tuhucar` is installed: `tuhucar --version`
 2. If not installed, guide the user to install:
    - `npm install -g @tuhucar/cli`
    - Or: `curl -fsSL https://raw.githubusercontent.com/tuhucar/tuhucar/main/install.sh | sh`
-3. Verify configuration exists: run `tuhucar config show`
-4. If config missing, run `tuhucar config init`
+3. Verify configuration: `tuhucar config show`
+4. If config is missing, run `tuhucar config init` — **or** set `TUHUCAR_ENDPOINT` in the environment to skip the file (useful for ad-hoc / dev gateways).
 
 ## Output Format Conventions
 
-- When calling tuhucar for data processing (feeding into your reasoning): use `--format json`
-- When displaying results directly to the user: use `--format markdown` (default)
-- Always parse JSON output programmatically, never show raw JSON to users
+- When you need to parse the result programmatically: pass `--format json`.
+- When piping the result straight to the user: use the markdown default.
+- Never show the raw JSON envelope to the user — always extract `data.*` first.
 
-## Error Handling
+## Unified JSON Envelope
 
-All tuhucar commands return a unified JSON envelope when `--format json` is used:
+Every command (with `--format json`) returns:
 
 ```json
 {
-  "data": { ... },
-  "error": { "code": "...", "message": "...", "retryable": true/false, "suggestion": "..." },
-  "meta": { "version": "...", "notices": [...] }
+  "data":  { ... },
+  "error": { "code": "...", "message": "...", "retryable": true, "suggestion": "..." },
+  "meta":  { "version": "0.1.0", "notices": [...] }
 }
 ```
 
-Decision matrix based on `error.code`:
+Exactly one of `data` / `error` is populated.
 
-| error.code | retryable | Action |
-|-----------|-----------|--------|
-| (no error) | - | Use `data` normally |
-| `CAR_NOT_FOUND` | false | Read `suggestion`, ask user for more precise description |
-| `NETWORK_ERROR` | true | Retry once automatically |
-| `API_ERROR` (5xx) | true | Tell user to try again later |
-| `API_ERROR` (4xx) | false | Read `suggestion` for corrective action |
-| `CONFIG_MISSING` | false | Guide user to run `tuhucar config init` |
-| `INVALID_ARGS` | false | Read `suggestion` for correct usage, fix parameters |
+## Error Decision Matrix
+
+| `error.code` | retryable | Action |
+|---|---|---|
+| (none) | — | Use `data` normally |
+| `MCP_ERROR` | usually true | Retry once. If still failing, surface the upstream message. The gateway puts its own message inside `error.message` (e.g. `参数错误`). |
+| `NETWORK_ERROR` | true | Retry once automatically, then ask user to retry. |
+| `CONFIG_MISSING` | false | Run `tuhucar config init`, or set `TUHUCAR_ENDPOINT`. |
+| `INVALID_ARGS` | false | Read `error.suggestion`, fix arguments, retry. |
+| `API_ERROR` (5xx) | true | Tell the user to try again later. |
+| `API_ERROR` (4xx) | false | Read `error.suggestion` for corrective action. |
 
 ## Update Notices
 
-After each command, check `meta.notices` for update notifications:
-- If `type: "update"` is present, inform the user about the available update
-- Include the update command from the `message` field
+After each command, check `meta.notices`. If a `type: "update"` notice is present, append the `message` to your reply so the user sees the upgrade hint.
+
+## Conversation State
+
+- `data.session_id` (returned by `knowledge query`) is **conversation-scoped**. Reuse it via `--session-id` for follow-up turns in the *same* conversation, then discard. Do not persist across conversations.
+- Do not cache any other ids across conversations.
 
 ## Safety Rules
 
-- Never modify the user's tuhucar configuration without asking
-- Always use `--dry-run` first if unsure about a command's behavior
-- Do not cache or store car_id values across conversations — always re-match
+- Never modify `~/.tuhucar/config.toml` without asking the user.
+- If you are unsure what a command will do, run it with `--dry-run` first — it prints the upstream MCP tool call instead of sending it.
+- This build only exposes `knowledge`, `config`, and `skill` subcommands. There is no `car` command — don't invent one.

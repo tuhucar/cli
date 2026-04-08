@@ -58,6 +58,6 @@ impl Command for KnowledgeCommand {
     }
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, TuhucarError> {
-        query::query_knowledge(&self.client, &input.car_id, &input.question).await
+        query::query_knowledge(&self.client, &input.question, input.session_id.as_deref()).await
     }
 }

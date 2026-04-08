@@ -9,7 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 tuhucar-core = { path = "../tuhucar-core" }
-tuhucar-car = { path = "../tuhucar-car" }
 tuhucar-knowledge = { path = "../tuhucar-knowledge" }
 clap = { workspace = true }
 serde = { workspace = true }

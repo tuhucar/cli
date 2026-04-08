@@ -1,22 +1,85 @@
+use crate::models::KnowledgeQueryOutput;
+use serde::Deserialize;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tuhucar_core::error::TuhucarError;
 use tuhucar_core::mcp::McpClient;
-use crate::models::KnowledgeQueryOutput;
+
+static MSG_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+const TOOL_NAME: &str = "mkt-intelligent-skill-dialogue";
+
+#[derive(Deserialize)]
+struct GatewayEnvelope {
+    code: i64,
+    #[serde(default)]
+    message: Option<String>,
+    data: Option<GatewayData>,
+}
+
+#[derive(Deserialize)]
+struct GatewayData {
+    reply: String,
+    #[serde(rename = "sessionId")]
+    session_id: String,
+    #[serde(rename = "msgId")]
+    msg_id: String,
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
 
 pub async fn query_knowledge(
     client: &McpClient,
-    car_id: &str,
     question: &str,
+    session_id: Option<&str>,
 ) -> Result<KnowledgeQueryOutput, TuhucarError> {
-    let body = client
-        .call_tool(
-            "knowledge_query",
-            serde_json::json!({ "car_id": car_id, "question": question }),
-        )
-        .await?;
+    let now = now_millis();
+    let session = session_id
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| now.to_string());
+    let msg_id = format!("{}-{}", now, MSG_COUNTER.fetch_add(1, Ordering::Relaxed));
 
-    serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
+    let arguments = serde_json::json!({
+        "sessionId": session,
+        "msgId": msg_id,
+        "query": [{
+            "textFormat": "TXT",
+            "text": question,
+            "timeStamp": now,
+        }],
+    });
+
+    let body = client.call_tool(TOOL_NAME, arguments).await?;
+
+    let envelope: GatewayEnvelope =
+        serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
+            code: -1,
+            message: format!("Failed to parse knowledge response: {}: {}", e, body),
+        })?;
+
+    if envelope.code != 10000 {
+        return Err(TuhucarError::McpError {
+            code: envelope.code,
+            message: envelope
+                .message
+                .unwrap_or_else(|| "Knowledge gateway returned non-success code".into()),
+        });
+    }
+
+    let data = envelope.data.ok_or_else(|| TuhucarError::McpError {
         code: -1,
-        message: format!("Failed to parse knowledge response: {}", e),
+        message: "Knowledge gateway returned no data".into(),
+    })?;
+
+    Ok(KnowledgeQueryOutput {
+        reply: data.reply,
+        session_id: data.session_id,
+        msg_id: data.msg_id,
     })
 }
 
@@ -25,13 +88,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn valid_json_parses_knowledge_output() {
-        let json = r#"{
-            "answer": "每5000公里更换",
-            "links": [{"title": "预约", "url": "https://m.tuhu.cn", "link_type": "H5"}],
-            "related_questions": ["什么机油好"]
-        }"#;
-        let output: KnowledgeQueryOutput = serde_json::from_str(json).unwrap();
-        assert_eq!(output.links.len(), 1);
+    fn parses_gateway_envelope() {
+        let body = r#"{"code":10000,"data":{"reply":"换机油","sessionId":"s","msgId":"m"},"message":"ok"}"#;
+        let env: GatewayEnvelope = serde_json::from_str(body).unwrap();
+        assert_eq!(env.code, 10000);
+        assert_eq!(env.data.unwrap().reply, "换机油");
     }
 }
