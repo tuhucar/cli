@@ -42,7 +42,11 @@ pub async fn query_knowledge(
     let session = session_id
         .map(|s| s.to_string())
         .unwrap_or_else(|| now.to_string());
-    let msg_id = format!("{}-{}", now, MSG_COUNTER.fetch_add(1, Ordering::Relaxed));
+    // Gateway requires msgId to be a pure-digit string (Long → String).
+    // Combine timestamp (ms) with a 3-digit zero-padded counter to stay unique
+    // within the same millisecond without introducing non-digit characters.
+    let counter = MSG_COUNTER.fetch_add(1, Ordering::Relaxed) % 1000;
+    let msg_id = format!("{}{:03}", now, counter);
 
     let arguments = serde_json::json!({
         "sessionId": session,
