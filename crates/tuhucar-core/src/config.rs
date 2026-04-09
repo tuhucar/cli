@@ -93,7 +93,7 @@ pub fn default_endpoint() -> String {
     }
     option_env!("TUHUCAR_DEFAULT_ENDPOINT")
         .filter(|s| !s.is_empty())
-        .unwrap_or("https://gateway.tuhu.cn/mcp/gateway/v1")
+        .unwrap_or("https://ai-gateway.tuhu.cn/mcp/gateway/v1")
         .to_string()
 }
 
@@ -148,7 +148,7 @@ base_url = "https://legacy.example.com"
     #[test]
     fn default_config_has_expected_values() {
         let config = Config::default_config();
-        assert_eq!(config.api.endpoint, "https://gateway.tuhu.cn/mcp/gateway/v1");
+        assert_eq!(config.api.endpoint, "https://ai-gateway.tuhu.cn/mcp/gateway/v1");
         assert_eq!(config.api.timeout, 30);
         assert_eq!(config.output.default_format, "markdown");
     }
