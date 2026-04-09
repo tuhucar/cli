@@ -31,7 +31,7 @@ impl Default for OutputConfig {
     }
 }
 
-fn default_timeout() -> u64 { 30 }
+fn default_timeout() -> u64 { 300 }
 fn default_format() -> String { "markdown".to_string() }
 
 impl Config {
@@ -72,7 +72,7 @@ impl Config {
         Self {
             api: ApiConfig {
                 endpoint: default_endpoint(),
-                timeout: 30,
+                timeout: 300,
             },
             output: OutputConfig::default(),
         }
