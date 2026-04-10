@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # TuhuCar CLI Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/tuhucar/tuhucar/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/scripts/install.sh | sh
 
-REPO="tuhucar/tuhucar"
+REPO="tuhucar/cli"
 INSTALL_DIR="${HOME}/.tuhucar/bin"
 VERSION="${TUHUCAR_VERSION:-latest}"
 
@@ -19,15 +19,13 @@ detect_platform() {
         Linux)   os="linux" ;;
         Darwin)  os="darwin" ;;
         MINGW*|MSYS*|CYGWIN*) os="win32" ;;
-        FreeBSD) os="freebsd" ;;
-        *)       error "Unsupported OS: $(uname -s)" ;;
+        *)       error "Unsupported OS: $(uname -s). Supported: Linux, macOS, Windows." ;;
     esac
 
     case "$(uname -m)" in
         x86_64|amd64)  arch="x64" ;;
         aarch64|arm64) arch="arm64" ;;
-        armv7l)        arch="arm" ;;
-        *)             error "Unsupported architecture: $(uname -m)" ;;
+        *)             error "Unsupported architecture: $(uname -m). Supported: x64, arm64." ;;
     esac
 
     # Detect musl on Linux
