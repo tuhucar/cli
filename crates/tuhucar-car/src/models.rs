@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tuhucar_core::Render;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -37,8 +37,14 @@ impl Render for CarMatchResult {
         for (i, c) in self.candidates.iter().enumerate() {
             out.push_str(&format!(
                 "{}. **{} {} {} {} {}** (confidence: {:.0}%)\n   ID: `{}`\n\n",
-                i + 1, c.brand, c.series, c.year, c.displacement, c.model,
-                c.confidence * 100.0, c.car_id
+                i + 1,
+                c.brand,
+                c.series,
+                c.year,
+                c.displacement,
+                c.model,
+                c.confidence * 100.0,
+                c.car_id
             ));
         }
         out

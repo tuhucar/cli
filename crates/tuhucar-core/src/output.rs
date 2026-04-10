@@ -1,6 +1,6 @@
+use crate::types::{OutputFormat, Render, Response};
 use schemars::JsonSchema;
 use serde::Serialize;
-use crate::types::{OutputFormat, Response, Render};
 
 pub fn format_response<T: Serialize + JsonSchema + Render>(
     resp: &Response<T>,
@@ -55,7 +55,12 @@ mod tests {
 
     #[test]
     fn json_format_returns_valid_json() {
-        let resp = Response::success(TestData { value: "hello".into() }, None);
+        let resp = Response::success(
+            TestData {
+                value: "hello".into(),
+            },
+            None,
+        );
         let output = format_response(&resp, OutputFormat::Json);
         let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(parsed["data"]["value"], "hello");
@@ -63,7 +68,12 @@ mod tests {
 
     #[test]
     fn markdown_format_renders_data() {
-        let resp = Response::success(TestData { value: "hello".into() }, None);
+        let resp = Response::success(
+            TestData {
+                value: "hello".into(),
+            },
+            None,
+        );
         let output = format_response(&resp, OutputFormat::Markdown);
         assert!(output.contains("Value: hello"));
     }

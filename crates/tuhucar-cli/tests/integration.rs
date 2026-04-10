@@ -6,9 +6,7 @@ fn tuhucar() -> Command {
 
 /// Create a unique temp dir for test isolation, return its path.
 fn make_temp_home(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "tuhucar-test-{}-{}", name, std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("tuhucar-test-{}-{}", name, std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -106,10 +104,7 @@ fn invalid_format_returns_error_exit_code() {
 fn prescan_json_format_produces_json_error_envelope() {
     // pre_scan_format() detects --format=json, so even when clap fails
     // (e.g. missing subcommand), we get a JSON error envelope on stdout
-    let output = tuhucar()
-        .args(["--format=json"])
-        .output()
-        .unwrap();
+    let output = tuhucar().args(["--format=json"]).output().unwrap();
     assert!(!output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
@@ -130,7 +125,10 @@ fn config_init_json_returns_envelope() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert!(json["data"].is_object());
-    assert!(json["data"]["path"].as_str().unwrap().contains("config.toml"));
+    assert!(json["data"]["path"]
+        .as_str()
+        .unwrap()
+        .contains("config.toml"));
     assert!(json["data"]["message"].as_str().unwrap().contains("saved"));
     cleanup(&tmp);
 }
@@ -143,7 +141,8 @@ fn config_show_json_returns_envelope() {
     std::fs::write(
         tuhucar_dir.join("config.toml"),
         "[api]\nendpoint = \"https://test.example.com\"\n",
-    ).unwrap();
+    )
+    .unwrap();
     let output = tuhucar()
         .args(["--format", "json", "config", "show"])
         .env("HOME", &tmp)
@@ -182,7 +181,8 @@ fn config_show_accepts_legacy_base_url() {
     std::fs::write(
         tuhucar_dir.join("config.toml"),
         "[api]\nbase_url = \"https://legacy.example.com\"\n",
-    ).unwrap();
+    )
+    .unwrap();
     let output = tuhucar()
         .args(["--format", "json", "config", "show"])
         .env("HOME", &tmp)
@@ -191,7 +191,10 @@ fn config_show_accepts_legacy_base_url() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(json["data"]["api"]["endpoint"], "https://legacy.example.com");
+    assert_eq!(
+        json["data"]["api"]["endpoint"],
+        "https://legacy.example.com"
+    );
     cleanup(&tmp);
 }
 
@@ -214,7 +217,11 @@ fn markdown_mode_shows_update_notice_on_stderr() {
         .unwrap();
     assert!(output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("9.9.9"), "stderr should contain update notice, got: {}", stderr);
+    assert!(
+        stderr.contains("9.9.9"),
+        "stderr should contain update notice, got: {}",
+        stderr
+    );
     // Verify .update_notified was written
     assert!(tuhucar_dir.join(".update_notified").exists());
     cleanup(&tmp);

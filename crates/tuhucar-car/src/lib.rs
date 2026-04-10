@@ -1,12 +1,12 @@
 pub mod matcher;
 pub mod models;
 
+use crate::models::{CarMatchInput, CarMatchResult};
 use async_trait::async_trait;
 use tuhucar_core::command::Command;
-use tuhucar_core::ErrorSchemaEntry;
 use tuhucar_core::error::TuhucarError;
 use tuhucar_core::mcp::McpClient;
-use crate::models::{CarMatchInput, CarMatchResult};
+use tuhucar_core::ErrorSchemaEntry;
 
 pub struct CarCommand {
     client: McpClient,
@@ -25,9 +25,8 @@ impl CarCommand {
             name: "car.match".to_string(),
             description: "模糊匹配五级车型".to_string(),
             input: serde_json::to_value(schemars::schema_for!(CarMatchInput)).unwrap(),
-            wire_output: serde_json::to_value(
-                schemars::schema_for!(Response<CarMatchResult>),
-            ).unwrap(),
+            wire_output: serde_json::to_value(schemars::schema_for!(Response<CarMatchResult>))
+                .unwrap(),
             errors: vec![
                 ErrorSchemaEntry {
                     code: "CAR_NOT_FOUND".into(),
@@ -49,8 +48,12 @@ impl Command for CarCommand {
     type Input = CarMatchInput;
     type Output = CarMatchResult;
 
-    fn name(&self) -> &str { "car.match" }
-    fn description(&self) -> &str { "模糊匹配五级车型" }
+    fn name(&self) -> &str {
+        "car.match"
+    }
+    fn description(&self) -> &str {
+        "模糊匹配五级车型"
+    }
 
     fn error_schemas(&self) -> Vec<ErrorSchemaEntry> {
         vec![

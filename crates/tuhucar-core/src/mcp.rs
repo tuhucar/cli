@@ -148,7 +148,11 @@ impl McpClient {
             if let Some(sid) = result.get("sessionId").and_then(|v| v.as_str()) {
                 self.session_id = Some(sid.to_string());
             }
-            if result.get("capabilities").and_then(|c| c.get("tools")).is_none() {
+            if result
+                .get("capabilities")
+                .and_then(|c| c.get("tools"))
+                .is_none()
+            {
                 return Err(TuhucarError::McpError {
                     code: -1,
                     message: "MCP server does not advertise tools capability".into(),
@@ -178,10 +182,7 @@ impl McpClient {
         };
 
         let (resp, _) = self
-            .send_request(
-                "tools/call",
-                Some(serde_json::to_value(params).unwrap()),
-            )
+            .send_request("tools/call", Some(serde_json::to_value(params).unwrap()))
             .await?;
 
         if let Some(err) = resp.error {
@@ -191,16 +192,15 @@ impl McpClient {
             });
         }
 
-        let result: ToolCallResult = serde_json::from_value(
-            resp.result.ok_or_else(|| TuhucarError::McpError {
+        let result: ToolCallResult =
+            serde_json::from_value(resp.result.ok_or_else(|| TuhucarError::McpError {
                 code: -1,
                 message: "Empty result from tools/call".into(),
-            })?,
-        )
-        .map_err(|e| TuhucarError::McpError {
-            code: -1,
-            message: format!("Failed to parse tool result: {}", e),
-        })?;
+            })?)
+            .map_err(|e| TuhucarError::McpError {
+                code: -1,
+                message: format!("Failed to parse tool result: {}", e),
+            })?;
 
         if result.is_error {
             let msg = result
@@ -249,10 +249,7 @@ impl McpClient {
             http_req = http_req.header("Mcp-Session-Id", sid);
         }
 
-        let http_resp = http_req
-            .json(&req)
-            .send()
-            .await?;
+        let http_resp = http_req.json(&req).send().await?;
 
         let session_id = http_resp
             .headers()
@@ -310,7 +307,12 @@ mod tests {
         let body = r#"{"jsonrpc":"2.0","id":"1","result":{"sessionId":"abc","capabilities":{"tools":{}}}}"#;
         let resp = parse_jsonrpc_body(body).unwrap();
         assert_eq!(
-            resp.result.unwrap().get("sessionId").unwrap().as_str().unwrap(),
+            resp.result
+                .unwrap()
+                .get("sessionId")
+                .unwrap()
+                .as_str()
+                .unwrap(),
             "abc"
         );
     }

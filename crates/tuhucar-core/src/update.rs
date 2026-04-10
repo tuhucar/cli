@@ -115,8 +115,13 @@ pub fn pending_notice() -> Option<Notice> {
     }
 
     let message = match check.install_source {
-        InstallSource::Npm => format!("新版本 {} 可用，请运行: npm update -g @tuhucar/cli", check.latest),
-        InstallSource::Homebrew => format!("新版本 {} 可用，请运行: brew upgrade tuhucar", check.latest),
+        InstallSource::Npm => format!(
+            "新版本 {} 可用，请运行: npm update -g @tuhucar/cli",
+            check.latest
+        ),
+        InstallSource::Homebrew => {
+            format!("新版本 {} 可用，请运行: brew upgrade tuhucar", check.latest)
+        }
         InstallSource::InstallSh => format!("新版本 {} 可用，将在下次启动时自动更新", check.latest),
         InstallSource::Unknown => format!("新版本 {} 可用，请手动更新", check.latest),
     };
@@ -174,11 +179,26 @@ mod tests {
 
     #[test]
     fn classify_path_identifies_sources() {
-        assert_eq!(classify_path("/home/user/.tuhucar/bin/tuhucar"), InstallSource::InstallSh);
-        assert_eq!(classify_path("/usr/lib/node_modules/@tuhucar/cli/bin/tuhucar"), InstallSource::Npm);
-        assert_eq!(classify_path("/opt/homebrew/Cellar/tuhucar/0.1.0/bin/tuhucar"), InstallSource::Homebrew);
-        assert_eq!(classify_path("/home/linuxbrew/.linuxbrew/homebrew/bin/tuhucar"), InstallSource::Homebrew);
-        assert_eq!(classify_path("/usr/local/bin/tuhucar"), InstallSource::Unknown);
+        assert_eq!(
+            classify_path("/home/user/.tuhucar/bin/tuhucar"),
+            InstallSource::InstallSh
+        );
+        assert_eq!(
+            classify_path("/usr/lib/node_modules/@tuhucar/cli/bin/tuhucar"),
+            InstallSource::Npm
+        );
+        assert_eq!(
+            classify_path("/opt/homebrew/Cellar/tuhucar/0.1.0/bin/tuhucar"),
+            InstallSource::Homebrew
+        );
+        assert_eq!(
+            classify_path("/home/linuxbrew/.linuxbrew/homebrew/bin/tuhucar"),
+            InstallSource::Homebrew
+        );
+        assert_eq!(
+            classify_path("/usr/local/bin/tuhucar"),
+            InstallSource::Unknown
+        );
     }
 
     #[test]

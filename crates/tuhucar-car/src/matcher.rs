@@ -1,14 +1,14 @@
+use crate::models::{CarMatchCandidate, CarMatchResult};
 use tuhucar_core::error::TuhucarError;
 use tuhucar_core::mcp::McpClient;
-use crate::models::{CarMatchResult, CarMatchCandidate};
 
 pub async fn match_car(client: &McpClient, query: &str) -> Result<CarMatchResult, TuhucarError> {
     let body = client
         .call_tool("car_match", serde_json::json!({ "query": query }))
         .await?;
 
-    let candidates: Vec<CarMatchCandidate> = serde_json::from_str(&body)
-        .map_err(|e| TuhucarError::McpError {
+    let candidates: Vec<CarMatchCandidate> =
+        serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
             code: -1,
             message: format!("Failed to parse car match response: {}", e),
         })?;

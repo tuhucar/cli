@@ -13,7 +13,7 @@ npm install -g @tuhucar/cli
 ### 一键安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tuhucar/tuhucar/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/install.sh | sh
 ```
 
 ### Homebrew

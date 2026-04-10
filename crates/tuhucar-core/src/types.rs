@@ -1,5 +1,5 @@
-use serde::Serialize;
 use schemars::JsonSchema;
+use serde::Serialize;
 
 use crate::error::ApiError;
 
@@ -15,11 +15,19 @@ pub struct Response<T: Serialize + JsonSchema> {
 
 impl<T: Serialize + JsonSchema> Response<T> {
     pub fn success(data: T, meta: Option<ResponseMeta>) -> Self {
-        Self { data: Some(data), error: None, meta }
+        Self {
+            data: Some(data),
+            error: None,
+            meta,
+        }
     }
 
     pub fn error(err: ApiError, meta: Option<ResponseMeta>) -> Self {
-        Self { data: None, error: Some(err), meta }
+        Self {
+            data: None,
+            error: Some(err),
+            meta,
+        }
     }
 }
 

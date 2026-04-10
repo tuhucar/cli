@@ -3,8 +3,8 @@ use tuhucar_core::config::Config;
 use tuhucar_core::mcp::McpClient;
 use tuhucar_core::output::format_response;
 use tuhucar_core::{Command as TuhucarCommand, OutputFormat, Response, ResponseMeta, TuhucarError};
-use tuhucar_knowledge::KnowledgeCommand;
 use tuhucar_knowledge::models::KnowledgeQueryInput;
+use tuhucar_knowledge::KnowledgeCommand;
 
 #[derive(Subcommand)]
 pub enum KnowledgeAction {

@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::types::{CommandSchema, ErrorSchemaEntry};
 use crate::error::TuhucarError;
 use crate::types::Response;
+use crate::types::{CommandSchema, ErrorSchemaEntry};
 
 #[async_trait]
 pub trait Command: Send + Sync {
@@ -19,10 +19,8 @@ pub trait Command: Send + Sync {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input: serde_json::to_value(schemars::schema_for!(Self::Input)).unwrap(),
-            wire_output: serde_json::to_value(
-                schemars::schema_for!(Response<Self::Output>),
-            )
-            .unwrap(),
+            wire_output: serde_json::to_value(schemars::schema_for!(Response<Self::Output>))
+                .unwrap(),
             errors: self.error_schemas(),
         }
     }

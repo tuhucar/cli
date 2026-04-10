@@ -10,7 +10,11 @@ pub enum ConfigAction {
     Show,
 }
 
-pub async fn run(action: ConfigAction, format: OutputFormat, meta: ResponseMeta) -> Result<(), TuhucarError> {
+pub async fn run(
+    action: ConfigAction,
+    format: OutputFormat,
+    meta: ResponseMeta,
+) -> Result<(), TuhucarError> {
     match action {
         ConfigAction::Init => {
             let config = Config::default_config();

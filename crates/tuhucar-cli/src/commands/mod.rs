@@ -32,7 +32,9 @@ pub async fn run(
     meta: ResponseMeta,
 ) -> Result<(), TuhucarError> {
     match cmd {
-        Commands::Knowledge { action } => knowledge::run(action, format, dry_run, verbose, meta).await,
+        Commands::Knowledge { action } => {
+            knowledge::run(action, format, dry_run, verbose, meta).await
+        }
         Commands::Config { action } => config::run(action, format, meta).await,
         Commands::Skill { action } => skill::run(action, format).await,
     }

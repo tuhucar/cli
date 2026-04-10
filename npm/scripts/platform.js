@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VERSION = require('../package.json').version;
-const REPO = 'tuhucar/tuhucar';
+const REPO = 'tuhucar/cli';
 
 function detectMusl() {
   try {

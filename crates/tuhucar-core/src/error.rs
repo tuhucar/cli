@@ -1,5 +1,5 @@
-use serde::Serialize;
 use schemars::JsonSchema;
+use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -78,7 +78,10 @@ impl From<TuhucarError> for ApiError {
                     message,
                 }),
             },
-            TuhucarError::InvalidArgs { message, suggestion } => ApiError {
+            TuhucarError::InvalidArgs {
+                message,
+                suggestion,
+            } => ApiError {
                 code: "INVALID_ARGS".into(),
                 message,
                 retryable: false,

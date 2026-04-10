@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tuhucar/tuhucar"
+    "url": "https://github.com/tuhucar/cli"
   },
   "keywords": ["tuhucar", "car", "maintenance", "cli"],
   "license": "MIT",

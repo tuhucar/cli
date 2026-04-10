@@ -1,6 +1,6 @@
+use crate::error::TuhucarError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::error::TuhucarError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -31,8 +31,12 @@ impl Default for OutputConfig {
     }
 }
 
-fn default_timeout() -> u64 { 300 }
-fn default_format() -> String { "markdown".to_string() }
+fn default_timeout() -> u64 {
+    300
+}
+fn default_format() -> String {
+    "markdown".to_string()
+}
 
 impl Config {
     pub fn config_dir() -> PathBuf {
@@ -62,8 +66,8 @@ impl Config {
         let dir = Self::config_dir();
         std::fs::create_dir_all(&dir)
             .map_err(|e| TuhucarError::ConfigParse(format!("Cannot create dir: {}", e)))?;
-        let content = toml::to_string_pretty(self)
-            .map_err(|e| TuhucarError::ConfigParse(e.to_string()))?;
+        let content =
+            toml::to_string_pretty(self).map_err(|e| TuhucarError::ConfigParse(e.to_string()))?;
         std::fs::write(Self::config_path(), content)
             .map_err(|e| TuhucarError::ConfigParse(e.to_string()))
     }
@@ -148,7 +152,10 @@ base_url = "https://legacy.example.com"
     #[test]
     fn default_config_has_expected_values() {
         let config = Config::default_config();
-        assert_eq!(config.api.endpoint, "https://ai-gateway.tuhu.cn/mcp/gateway/v1");
+        assert_eq!(
+            config.api.endpoint,
+            "https://ai-gateway.tuhu.cn/mcp/gateway/v1"
+        );
         assert_eq!(config.api.timeout, 30);
         assert_eq!(config.output.default_format, "markdown");
     }

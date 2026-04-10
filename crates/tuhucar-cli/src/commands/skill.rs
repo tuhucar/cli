@@ -71,15 +71,26 @@ fn print_summary(action: &str, results: &[PlatformResult]) {
     println!("\nSkill {} summary:", action);
     for r in results {
         let (icon, detail) = match &r.status {
-            PlatformStatus::Installed => ("\u{2713}", if action == "uninstallation" { "removed".to_string() } else { "installed".to_string() }),
+            PlatformStatus::Installed => (
+                "\u{2713}",
+                if action == "uninstallation" {
+                    "removed".to_string()
+                } else {
+                    "installed".to_string()
+                },
+            ),
             PlatformStatus::Skipped(reason) => ("-", format!("skipped ({})", reason)),
             PlatformStatus::Failed(err) => ("\u{2717}", format!("failed ({})", err)),
         };
         println!("  {} {:<14} \u{2014} {}", icon, r.name, detail);
     }
 
-    let any_installed = results.iter().any(|r| matches!(r.status, PlatformStatus::Installed));
-    let any_failed = results.iter().any(|r| matches!(r.status, PlatformStatus::Failed(_)));
+    let any_installed = results
+        .iter()
+        .any(|r| matches!(r.status, PlatformStatus::Installed));
+    let any_failed = results
+        .iter()
+        .any(|r| matches!(r.status, PlatformStatus::Failed(_)));
 
     println!();
     if any_installed {
@@ -112,7 +123,10 @@ fn write_skill_files(dest: &Path) -> std::io::Result<()> {
 fn install_claude_code(home: &Path) -> PlatformResult {
     let claude_dir = home.join(".claude");
     if !claude_dir.exists() {
-        return PlatformResult { name: "Claude Code", status: PlatformStatus::Skipped("not detected".into()) };
+        return PlatformResult {
+            name: "Claude Code",
+            status: PlatformStatus::Skipped("not detected".into()),
+        };
     }
     let result = (|| -> std::io::Result<()> {
         // Write skill files
@@ -125,8 +139,14 @@ fn install_claude_code(home: &Path) -> PlatformResult {
         Ok(())
     })();
     match result {
-        Ok(_) => PlatformResult { name: "Claude Code", status: PlatformStatus::Installed },
-        Err(e) => PlatformResult { name: "Claude Code", status: PlatformStatus::Failed(e.to_string()) },
+        Ok(_) => PlatformResult {
+            name: "Claude Code",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "Claude Code",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
@@ -134,11 +154,17 @@ fn uninstall_claude_code(home: &Path) -> PlatformResult {
     let skills_dir = home.join(".claude").join("skills").join("tuhucar");
     let plugin_dir = home.join(".claude").join("plugins").join("tuhucar");
     if !skills_dir.exists() && !plugin_dir.exists() {
-        return PlatformResult { name: "Claude Code", status: PlatformStatus::Skipped("not installed".into()) };
+        return PlatformResult {
+            name: "Claude Code",
+            status: PlatformStatus::Skipped("not installed".into()),
+        };
     }
     let _ = std::fs::remove_dir_all(&skills_dir);
     let _ = std::fs::remove_dir_all(&plugin_dir);
-    PlatformResult { name: "Claude Code", status: PlatformStatus::Installed }
+    PlatformResult {
+        name: "Claude Code",
+        status: PlatformStatus::Installed,
+    }
 }
 
 // --- Cursor ---
@@ -146,7 +172,10 @@ fn uninstall_claude_code(home: &Path) -> PlatformResult {
 fn install_cursor(home: &Path) -> PlatformResult {
     let cursor_dir = home.join(".cursor");
     if !cursor_dir.exists() {
-        return PlatformResult { name: "Cursor", status: PlatformStatus::Skipped("not detected".into()) };
+        return PlatformResult {
+            name: "Cursor",
+            status: PlatformStatus::Skipped("not detected".into()),
+        };
     }
     let result = (|| -> std::io::Result<()> {
         let skills_dest = cursor_dir.join("skills").join("tuhucar");
@@ -157,8 +186,14 @@ fn install_cursor(home: &Path) -> PlatformResult {
         Ok(())
     })();
     match result {
-        Ok(_) => PlatformResult { name: "Cursor", status: PlatformStatus::Installed },
-        Err(e) => PlatformResult { name: "Cursor", status: PlatformStatus::Failed(e.to_string()) },
+        Ok(_) => PlatformResult {
+            name: "Cursor",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "Cursor",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
@@ -166,11 +201,17 @@ fn uninstall_cursor(home: &Path) -> PlatformResult {
     let skills_dir = home.join(".cursor").join("skills").join("tuhucar");
     let plugin_dir = home.join(".cursor").join("plugins").join("tuhucar");
     if !skills_dir.exists() && !plugin_dir.exists() {
-        return PlatformResult { name: "Cursor", status: PlatformStatus::Skipped("not installed".into()) };
+        return PlatformResult {
+            name: "Cursor",
+            status: PlatformStatus::Skipped("not installed".into()),
+        };
     }
     let _ = std::fs::remove_dir_all(&skills_dir);
     let _ = std::fs::remove_dir_all(&plugin_dir);
-    PlatformResult { name: "Cursor", status: PlatformStatus::Installed }
+    PlatformResult {
+        name: "Cursor",
+        status: PlatformStatus::Installed,
+    }
 }
 
 // --- Codex ---
@@ -178,7 +219,12 @@ fn uninstall_cursor(home: &Path) -> PlatformResult {
 fn install_codex(_home: &Path) -> PlatformResult {
     let codex_home = match std::env::var("CODEX_HOME") {
         Ok(h) => PathBuf::from(h),
-        Err(_) => return PlatformResult { name: "Codex", status: PlatformStatus::Skipped("not detected".into()) },
+        Err(_) => {
+            return PlatformResult {
+                name: "Codex",
+                status: PlatformStatus::Skipped("not detected".into()),
+            }
+        }
     };
     let result = (|| -> std::io::Result<()> {
         let skills_dest = codex_home.join("skills").join("tuhucar");
@@ -188,32 +234,53 @@ fn install_codex(_home: &Path) -> PlatformResult {
         Ok(())
     })();
     match result {
-        Ok(_) => PlatformResult { name: "Codex", status: PlatformStatus::Installed },
-        Err(e) => PlatformResult { name: "Codex", status: PlatformStatus::Failed(e.to_string()) },
+        Ok(_) => PlatformResult {
+            name: "Codex",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "Codex",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
 fn uninstall_codex() -> PlatformResult {
     let codex_home = match std::env::var("CODEX_HOME") {
         Ok(h) => PathBuf::from(h),
-        Err(_) => return PlatformResult { name: "Codex", status: PlatformStatus::Skipped("not detected".into()) },
+        Err(_) => {
+            return PlatformResult {
+                name: "Codex",
+                status: PlatformStatus::Skipped("not detected".into()),
+            }
+        }
     };
     let skills_dir = codex_home.join("skills").join("tuhucar");
     if !skills_dir.exists() {
-        return PlatformResult { name: "Codex", status: PlatformStatus::Skipped("not installed".into()) };
+        return PlatformResult {
+            name: "Codex",
+            status: PlatformStatus::Skipped("not installed".into()),
+        };
     }
     let _ = std::fs::remove_dir_all(&skills_dir);
-    PlatformResult { name: "Codex", status: PlatformStatus::Installed }
+    PlatformResult {
+        name: "Codex",
+        status: PlatformStatus::Installed,
+    }
 }
 
 // --- OpenCode ---
 
-const OPENCODE_PLUGIN_ENTRY: &str = r#"{"name":"tuhucar","type":"skill","path":"~/.opencode/skills/tuhucar"}"#;
+const OPENCODE_PLUGIN_ENTRY: &str =
+    r#"{"name":"tuhucar","type":"skill","path":"~/.opencode/skills/tuhucar"}"#;
 
 fn install_opencode(home: &Path) -> PlatformResult {
     let opencode_dir = home.join(".opencode");
     if !opencode_dir.exists() {
-        return PlatformResult { name: "OpenCode", status: PlatformStatus::Skipped("not detected".into()) };
+        return PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Skipped("not detected".into()),
+        };
     }
     let result = (|| -> std::io::Result<()> {
         // Write skill files
@@ -238,7 +305,9 @@ fn install_opencode(home: &Path) -> PlatformResult {
             .entry("plugins")
             .or_insert_with(|| serde_json::json!([]))
             .as_array_mut()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "plugins is not an array"))?;
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "plugins is not an array")
+            })?;
 
         // Remove existing tuhucar entry if present
         plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
@@ -248,8 +317,14 @@ fn install_opencode(home: &Path) -> PlatformResult {
         Ok(())
     })();
     match result {
-        Ok(_) => PlatformResult { name: "OpenCode", status: PlatformStatus::Installed },
-        Err(e) => PlatformResult { name: "OpenCode", status: PlatformStatus::Failed(e.to_string()) },
+        Ok(_) => PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
@@ -259,7 +334,10 @@ fn uninstall_opencode(home: &Path) -> PlatformResult {
     let config_path = opencode_dir.join("opencode.json");
 
     if !skills_dir.exists() && !config_path.exists() {
-        return PlatformResult { name: "OpenCode", status: PlatformStatus::Skipped("not installed".into()) };
+        return PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Skipped("not installed".into()),
+        };
     }
 
     let _ = std::fs::remove_dir_all(&skills_dir);
@@ -270,13 +348,19 @@ fn uninstall_opencode(home: &Path) -> PlatformResult {
             if let Ok(mut config) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(plugins) = config.get_mut("plugins").and_then(|p| p.as_array_mut()) {
                     plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
-                    let _ = std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap());
+                    let _ = std::fs::write(
+                        &config_path,
+                        serde_json::to_string_pretty(&config).unwrap(),
+                    );
                 }
             }
         }
     }
 
-    PlatformResult { name: "OpenCode", status: PlatformStatus::Installed }
+    PlatformResult {
+        name: "OpenCode",
+        status: PlatformStatus::Installed,
+    }
 }
 
 // --- Gemini CLI ---
@@ -284,7 +368,10 @@ fn uninstall_opencode(home: &Path) -> PlatformResult {
 fn install_gemini(home: &Path) -> PlatformResult {
     let gemini_dir = home.join(".gemini");
     if !gemini_dir.exists() {
-        return PlatformResult { name: "Gemini CLI", status: PlatformStatus::Skipped("not detected".into()) };
+        return PlatformResult {
+            name: "Gemini CLI",
+            status: PlatformStatus::Skipped("not detected".into()),
+        };
     }
     let result = (|| -> std::io::Result<()> {
         let ext_dir = gemini_dir.join("extensions").join("tuhucar");
@@ -294,16 +381,28 @@ fn install_gemini(home: &Path) -> PlatformResult {
         Ok(())
     })();
     match result {
-        Ok(_) => PlatformResult { name: "Gemini CLI", status: PlatformStatus::Installed },
-        Err(e) => PlatformResult { name: "Gemini CLI", status: PlatformStatus::Failed(e.to_string()) },
+        Ok(_) => PlatformResult {
+            name: "Gemini CLI",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "Gemini CLI",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
 fn uninstall_gemini(home: &Path) -> PlatformResult {
     let ext_dir = home.join(".gemini").join("extensions").join("tuhucar");
     if !ext_dir.exists() {
-        return PlatformResult { name: "Gemini CLI", status: PlatformStatus::Skipped("not installed".into()) };
+        return PlatformResult {
+            name: "Gemini CLI",
+            status: PlatformStatus::Skipped("not installed".into()),
+        };
     }
     let _ = std::fs::remove_dir_all(&ext_dir);
-    PlatformResult { name: "Gemini CLI", status: PlatformStatus::Installed }
+    PlatformResult {
+        name: "Gemini CLI",
+        status: PlatformStatus::Installed,
+    }
 }
