@@ -4,6 +4,19 @@ fn tuhucar() -> Command {
     Command::new(env!("CARGO_BIN_EXE_tuhucar"))
 }
 
+fn with_test_home<'a>(cmd: &'a mut Command, dir: &std::path::Path) -> &'a mut Command {
+    cmd.env("HOME", dir).env("USERPROFILE", dir);
+
+    if let Some(path_str) = dir.to_str() {
+        if let Some((drive, rest)) = path_str.split_once(':') {
+            cmd.env("HOMEDRIVE", format!("{drive}:"));
+            cmd.env("HOMEPATH", rest);
+        }
+    }
+
+    cmd
+}
+
 /// Create a unique temp dir for test isolation, return its path.
 fn make_temp_home(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("tuhucar-test-{}-{}", name, std::process::id()));
@@ -76,9 +89,8 @@ fn dry_run_does_not_make_request() {
 fn config_missing_returns_error_json() {
     let tmp = make_temp_home("config-missing");
     // Don't create .tuhucar/ — config should be missing
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["--format", "json", "config", "show"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -116,9 +128,8 @@ fn prescan_json_format_produces_json_error_envelope() {
 #[test]
 fn config_init_json_returns_envelope() {
     let tmp = make_temp_home("config-init");
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["--format", "json", "config", "init"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -143,9 +154,8 @@ fn config_show_json_returns_envelope() {
         "[api]\nendpoint = \"https://test.example.com\"\n",
     )
     .unwrap();
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["--format", "json", "config", "show"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -160,9 +170,8 @@ fn config_show_json_returns_envelope() {
 #[test]
 fn json_error_response_includes_meta_version() {
     let tmp = make_temp_home("meta-version");
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["--format", "json", "config", "show"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -183,9 +192,8 @@ fn config_show_accepts_legacy_base_url() {
         "[api]\nbase_url = \"https://legacy.example.com\"\n",
     )
     .unwrap();
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["--format", "json", "config", "show"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -210,9 +218,8 @@ fn markdown_mode_shows_update_notice_on_stderr() {
         r#"{"checked_at":"1700000000","current":"0.1.0","latest":"9.9.9","status":"update_available","install_source":"unknown"}"#,
     ).unwrap();
     // Run a command that succeeds without config (schema doesn't need config)
-    let output = tuhucar()
+    let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["knowledge", "schema"])
-        .env("HOME", &tmp)
         .output()
         .unwrap();
     assert!(output.status.success());

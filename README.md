@@ -1,19 +1,41 @@
-# TuhuCar CLI 途虎养车
+# TuhuCar CLI
 
-途虎养车 CLI 工具 — 车型匹配与养车知识查询，配合 AI 编程助手使用。
+[![CI](https://github.com/tuhucar/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/tuhucar/cli/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/%40tuhucar%2Fcli)](https://www.npmjs.com/package/@tuhucar/cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-## 安装
+TuhuCar CLI is a production-oriented command-line client for Tuhu car-care knowledge workflows.
+It provides a consistent interface for querying maintenance guidance, exposing machine-readable schemas for LLM tooling, and installing ready-to-use skills into popular AI coding assistants.
 
-### npm（推荐）
+## Why TuhuCar CLI
+
+- Purpose-built for car-care knowledge queries instead of generic chat wrappers
+- Stable CLI surface with both `markdown` and JSON envelope output modes
+- MCP-based upstream integration with schema introspection for agent workflows
+- Built-in skill installation for Claude Code, Cursor, Codex, OpenCode, and Gemini CLI
+- Multi-platform distribution via npm, release binaries, and shell installer
+
+## Features
+
+- `knowledge query` for maintenance and ownership questions
+- `knowledge schema` for LLM introspection and tool wiring
+- `config init` and `config show` for local runtime configuration
+- `skill install` and `skill uninstall` for assistant integration
+- `--dry-run` support for debugging and prompt/tool development
+- Update notices for installed distributions
+
+## Installation
+
+### npm
 
 ```bash
 npm install -g @tuhucar/cli
 ```
 
-### 一键安装
+### Shell Installer
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/scripts/install.sh | sh
 ```
 
 ### Homebrew
@@ -22,118 +44,132 @@ curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/install.sh | sh
 brew install tuhucar/tap/tuhucar
 ```
 
-## 快速开始
+## Quick Start
 
 ```bash
-# 初始化配置
+# 1. Create default config
 tuhucar config init
 
-# 匹配车型
-tuhucar car match "2024款朗逸1.5L自动舒适版"
+# 2. Ask a maintenance question
+tuhucar knowledge query "2024款大众朗逸1.5L 全合成机油多久换一次？"
 
-# 查询养车知识
-tuhucar knowledge query --car-id <car_id> "多久换机油"
+# 3. Continue a multi-turn session
+tuhucar knowledge query --session-id <session_id> "那刹车油多久换一次？"
 
-# 查看命令结构（供 LLM 自省）
-tuhucar car schema
+# 4. Inspect the machine-readable command schema
 tuhucar knowledge schema
 ```
 
-## 命令参考
+Configuration is stored at `~/.tuhucar/config.toml`.
+If you need to point the CLI at another gateway temporarily, set `TUHUCAR_ENDPOINT` in the environment.
 
-### 全局选项
+## Command Overview
 
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `--format json\|markdown` | 输出格式 | `markdown` |
-| `--dry-run` | 预览请求，不实际发送 | 关闭 |
-| `--verbose` | 详细输出 | 关闭 |
-| `--version` | 显示版本号 | - |
-| `--help` | 显示帮助 | - |
+### Global Options
 
-### 车型匹配
+| Option | Description | Default |
+| --- | --- | --- |
+| `--format json\|markdown` | Output mode for command results | `markdown` |
+| `--dry-run` | Preview the outbound MCP tool call without sending it | `false` |
+| `--verbose` | Enable more detailed runtime output | `false` |
+| `--version` | Print version information | - |
+| `--help` | Print help information | - |
+
+### Knowledge Query
 
 ```bash
-# 模糊匹配车型
-tuhucar car match "朗逸"
+# Human-friendly output
+tuhucar knowledge query "机油多久换一次"
 
-# JSON 格式输出（供程序使用）
-tuhucar car match "2024款朗逸1.5L" --format json
+# JSON envelope output
+tuhucar --format json knowledge query "机油多久换一次"
+
+# Multi-turn dialog
+tuhucar knowledge query --session-id <session_id> "轮胎气压怎么判断？"
+
+# Tool schema for agents
+tuhucar knowledge schema
 ```
 
-### 养车知识查询
+### Configuration
 
 ```bash
-# 查询指定车型的养车知识
-tuhucar knowledge query --car-id 12345 "多久换机油"
-
-# 预览请求
-tuhucar knowledge query --car-id 12345 "轮胎气压" --dry-run
-```
-
-### 配置管理
-
-```bash
-# 初始化默认配置
 tuhucar config init
-
-# 查看当前配置
 tuhucar config show
 ```
 
-配置文件位置：`~/.tuhucar/config.toml`
-
-### Skill 管理
+### Assistant Skills
 
 ```bash
-# 安装 Skill 到检测到的 AI 平台
 tuhucar skill install
-
-# 卸载 Skill
 tuhucar skill uninstall
 ```
 
-## AI 平台集成
+## AI Assistant Integration
 
-TuhuCar CLI 提供 Skill 定义，支持以下 AI 编程助手：
+TuhuCar CLI ships with embedded skill assets and platform-specific installation flows.
 
-| 平台 | 状态 |
-|------|------|
-| Claude Code | ✓ 支持 |
-| Cursor | ✓ 支持 |
-| Codex | ✓ 支持 |
-| OpenCode | ✓ 支持 |
-| Gemini CLI | ✓ 支持 |
+| Platform | Support |
+| --- | --- |
+| Claude Code | Yes |
+| Cursor | Yes |
+| Codex | Yes |
+| OpenCode | Yes |
+| Gemini CLI | Yes |
 
-安装 CLI 后运行 `tuhucar skill install`，会自动检测已安装的平台并注册 Skill。
+After installing the CLI, run `tuhucar skill install` to register the bundled skills on detected platforms.
 
-## 项目结构
+## Architecture
 
-```
-tuhucar/
-├── crates/
-│   ├── tuhucar-core/       # 公共基础（配置、HTTP、错误、类型）
-│   ├── tuhucar-car/        # 车型匹配模块
-│   ├── tuhucar-knowledge/  # 养车知识查询模块
-│   └── tuhucar-cli/        # CLI 二进制入口
-├── skills/                  # AI Skill 定义
-├── npm/                     # npm 分发包
-└── scripts/                 # 安装脚本
-```
+The project is organized as a small Rust workspace with clear module boundaries.
 
-## 开发
+| Path | Responsibility |
+| --- | --- |
+| `crates/tuhucar-core` | Shared config, MCP transport, error model, output envelope, update logic |
+| `crates/tuhucar-knowledge` | Knowledge query models and command implementation |
+| `crates/tuhucar-car` | Car matching support library retained in workspace modules |
+| `crates/tuhucar-cli` | User-facing CLI binary and command dispatch |
+| `skills/` | Assistant skill definitions and references |
+| `npm/` | npm distribution package |
+| `scripts/` | Installer and release support scripts |
+
+## Development
+
+### Prerequisites
+
+- Rust stable
+- Node.js 14+ for npm packaging workflows
+
+### Common Commands
 
 ```bash
-# 构建
-cargo build
+# Build the workspace
+cargo build --workspace
 
-# 运行测试
+# Run tests
 cargo test --workspace
 
-# 运行 CLI
+# Run clippy with CI-level strictness
+cargo clippy --workspace --all-targets -- -D warnings
+
+# Verify formatting
+cargo fmt --all -- --check
+
+# Run the CLI locally
 cargo run -p tuhucar-cli -- --help
 ```
 
+## Release Model
+
+- GitHub Releases publish platform binaries
+- npm publishes `@tuhucar/cli`
+- The shell installer downloads release artifacts directly from GitHub Releases
+
+## Contributing
+
+Issues and pull requests are welcome.
+When changing CLI behavior, keep the README examples, integration tests, and schema-facing output aligned.
+
 ## License
 
-MIT
+MIT. See [LICENSE](./LICENSE).
