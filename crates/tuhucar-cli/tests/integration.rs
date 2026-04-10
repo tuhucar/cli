@@ -5,7 +5,9 @@ fn tuhucar() -> Command {
 }
 
 fn with_test_home<'a>(cmd: &'a mut Command, dir: &std::path::Path) -> &'a mut Command {
-    cmd.env("HOME", dir).env("USERPROFILE", dir);
+    cmd.env("TUHUCAR_HOME", dir)
+        .env("HOME", dir)
+        .env("USERPROFILE", dir);
 
     if let Some(path_str) = dir.to_str() {
         if let Some((drive, rest)) = path_str.split_once(':') {

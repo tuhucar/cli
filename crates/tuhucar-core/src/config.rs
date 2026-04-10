@@ -40,7 +40,7 @@ fn default_format() -> String {
 
 impl Config {
     pub fn config_dir() -> PathBuf {
-        dirs::home_dir()
+        resolve_home_dir()
             .expect("Cannot determine home directory")
             .join(".tuhucar")
     }
@@ -81,6 +81,30 @@ impl Config {
             output: OutputConfig::default(),
         }
     }
+}
+
+fn resolve_home_dir() -> Option<PathBuf> {
+    std::env::var_os("TUHUCAR_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+        })
+        .or_else(|| {
+            std::env::var_os("USERPROFILE")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+        })
+        .or_else(|| {
+            let drive = std::env::var_os("HOMEDRIVE")?;
+            let path = std::env::var_os("HOMEPATH")?;
+            let mut combined = PathBuf::from(drive);
+            combined.push(path);
+            Some(combined)
+        })
+        .or_else(dirs::home_dir)
 }
 
 /// Default MCP gateway endpoint.
