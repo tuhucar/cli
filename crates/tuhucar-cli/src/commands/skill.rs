@@ -42,12 +42,13 @@ pub async fn run(action: SkillAction, _format: OutputFormat) -> Result<(), Tuhuc
 fn install_skills() -> Result<(), TuhucarError> {
     let home = dirs::home_dir().expect("Cannot determine home directory");
 
-    let mut results = Vec::new();
-    results.push(install_claude_code(&home));
-    results.push(install_cursor(&home));
-    results.push(install_codex(&home));
-    results.push(install_opencode(&home));
-    results.push(install_gemini(&home));
+    let results = vec![
+        install_claude_code(&home),
+        install_cursor(&home),
+        install_codex(&home),
+        install_opencode(&home),
+        install_gemini(&home),
+    ];
 
     print_summary("installation", &results);
     Ok(())
@@ -56,12 +57,13 @@ fn install_skills() -> Result<(), TuhucarError> {
 fn uninstall_skills() -> Result<(), TuhucarError> {
     let home = dirs::home_dir().expect("Cannot determine home directory");
 
-    let mut results = Vec::new();
-    results.push(uninstall_claude_code(&home));
-    results.push(uninstall_cursor(&home));
-    results.push(uninstall_codex());
-    results.push(uninstall_opencode(&home));
-    results.push(uninstall_gemini(&home));
+    let results = vec![
+        uninstall_claude_code(&home),
+        uninstall_cursor(&home),
+        uninstall_codex(),
+        uninstall_opencode(&home),
+        uninstall_gemini(&home),
+    ];
 
     print_summary("uninstallation", &results);
     Ok(())
