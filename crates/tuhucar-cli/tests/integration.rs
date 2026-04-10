@@ -91,7 +91,7 @@ fn config_missing_returns_error_json() {
 #[test]
 fn invalid_format_returns_error_exit_code() {
     let output = tuhucar()
-        .args(["--format", "xml", "car", "schema"])
+        .args(["--format", "xml", "knowledge", "schema"])
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -211,7 +211,7 @@ fn markdown_mode_shows_update_notice_on_stderr() {
     ).unwrap();
     // Run a command that succeeds without config (schema doesn't need config)
     let output = tuhucar()
-        .args(["car", "schema"])
+        .args(["knowledge", "schema"])
         .env("HOME", &tmp)
         .output()
         .unwrap();

@@ -76,7 +76,7 @@ impl Config {
         Self {
             api: ApiConfig {
                 endpoint: default_endpoint(),
-                timeout: 300,
+                timeout: default_timeout(),
             },
             output: OutputConfig::default(),
         }
@@ -128,7 +128,7 @@ default_format = "json"
 endpoint = "https://api.example.com"
 "#;
         let config: Config = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.api.timeout, 30);
+        assert_eq!(config.api.timeout, 300);
         assert_eq!(config.output.default_format, "markdown");
     }
 
@@ -156,7 +156,7 @@ base_url = "https://legacy.example.com"
             config.api.endpoint,
             "https://ai-gateway.tuhu.cn/mcp/gateway/v1"
         );
-        assert_eq!(config.api.timeout, 30);
+        assert_eq!(config.api.timeout, 300);
         assert_eq!(config.output.default_format, "markdown");
     }
 }
