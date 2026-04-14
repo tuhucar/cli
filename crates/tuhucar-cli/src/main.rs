@@ -1,8 +1,8 @@
 mod commands;
 
 use clap::Parser;
-use tuhucar_core::update;
 use tuhucar_core::output::format_markdown_error;
+use tuhucar_core::update;
 use tuhucar_core::{ApiError, Notice, OutputFormat, Response, ResponseMeta, TuhucarError};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
