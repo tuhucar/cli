@@ -2,6 +2,7 @@ mod commands;
 
 use clap::Parser;
 use tuhucar_core::update;
+use tuhucar_core::output::format_markdown_error;
 use tuhucar_core::{ApiError, Notice, OutputFormat, Response, ResponseMeta, TuhucarError};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -114,14 +115,7 @@ async fn main() {
                 println!("{}", serde_json::to_string_pretty(&resp).unwrap());
             }
             OutputFormat::Markdown => {
-                eprintln!(
-                    "Error [{}]: {}",
-                    resp.error.as_ref().unwrap().code,
-                    resp.error.as_ref().unwrap().message
-                );
-                if let Some(s) = &resp.error.as_ref().unwrap().suggestion {
-                    eprintln!("\n  {}", s);
-                }
+                eprint!("{}", format_markdown_error(resp.error.as_ref().unwrap()));
             }
         }
         mark_notices_notified(&meta);

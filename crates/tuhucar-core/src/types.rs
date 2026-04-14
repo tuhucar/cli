@@ -112,6 +112,7 @@ mod tests {
         let json = serde_json::to_value(&resp).unwrap();
         assert!(json.get("data").is_none());
         assert_eq!(json["error"]["code"], "CAR_NOT_FOUND");
+        assert!(json["error"].get("upstream").is_none());
     }
 
     #[test]

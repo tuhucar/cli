@@ -1,6 +1,33 @@
+use crate::error::ApiError;
 use crate::types::{OutputFormat, Render, Response};
 use schemars::JsonSchema;
 use serde::Serialize;
+
+fn is_upstream_rpc_error(err: &ApiError) -> bool {
+    err.code == "MCP_ERROR"
+        && err
+            .upstream
+            .as_ref()
+            .and_then(|upstream| upstream.rpc_code)
+            .is_some()
+}
+
+pub fn format_markdown_error(err: &ApiError) -> String {
+    let mut out = String::new();
+
+    if is_upstream_rpc_error(err) {
+        out.push_str(&err.message);
+        out.push('\n');
+    } else {
+        out.push_str(&format!("Error [{}]: {}\n", err.code, err.message));
+    }
+
+    if let Some(suggestion) = &err.suggestion {
+        out.push_str(&format!("\n  {}\n", suggestion));
+    }
+
+    out
+}
 
 pub fn format_response<T: Serialize + JsonSchema + Render>(
     resp: &Response<T>,
@@ -14,7 +41,12 @@ pub fn format_response<T: Serialize + JsonSchema + Render>(
                 out.push_str(&data.to_markdown());
             }
             if let Some(err) = &resp.error {
-                out.push_str(&format!("**Error [{}]:** {}\n", err.code, err.message));
+                if is_upstream_rpc_error(err) {
+                    out.push_str(&err.message);
+                    out.push('\n');
+                } else {
+                    out.push_str(&format!("**Error [{}]:** {}\n", err.code, err.message));
+                }
                 if let Some(suggestion) = &err.suggestion {
                     out.push_str(&format!("\n> {}\n", suggestion));
                 }
@@ -106,6 +138,24 @@ mod tests {
         let output = format_response(&resp, OutputFormat::Markdown);
         assert!(output.contains("**Error [NET_ERR]:** Network failed"));
         assert!(!output.contains(">"));
+    }
+
+    #[test]
+    fn markdown_error_formatter_uses_plain_message_for_rpc_errors() {
+        let api_err = ApiError {
+            code: "MCP_ERROR".into(),
+            message: "抱歉亲，今天忙疯了，明天再来询问吧".into(),
+            retryable: false,
+            suggestion: None,
+            upstream: Some(crate::error::UpstreamError {
+                status: None,
+                rpc_code: Some(-32007),
+                code: "MCP_ERROR".into(),
+                message: "抱歉亲，今天忙疯了，明天再来询问吧".into(),
+            }),
+        };
+        let output = format_markdown_error(&api_err);
+        assert_eq!(output, "抱歉亲，今天忙疯了，明天再来询问吧\n");
     }
 
     #[test]

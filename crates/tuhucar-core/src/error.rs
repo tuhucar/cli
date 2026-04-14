@@ -25,13 +25,17 @@ pub struct ApiError {
     pub retryable: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggestion: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
     pub upstream: Option<UpstreamError>,
 }
 
 #[derive(Debug, Serialize, JsonSchema, Clone)]
 pub struct UpstreamError {
-    pub status: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rpc_code: Option<i64>,
     pub code: String,
     pub message: String,
 }
@@ -70,10 +74,11 @@ impl From<TuhucarError> for ApiError {
             TuhucarError::McpError { code, message } => ApiError {
                 code: "MCP_ERROR".into(),
                 message: message.clone(),
-                retryable: code >= 500,
+                retryable: (500..=599).contains(&code),
                 suggestion: None,
                 upstream: Some(UpstreamError {
-                    status: code as u16,
+                    status: (100..=599).contains(&code).then_some(code as u16),
+                    rpc_code: (!(100..=599).contains(&code)).then_some(code),
                     code: "MCP_ERROR".into(),
                     message,
                 }),
@@ -115,7 +120,9 @@ mod tests {
         };
         let api_err: ApiError = err.into();
         assert!(api_err.retryable);
-        assert_eq!(api_err.upstream.unwrap().status, 502);
+        let upstream = api_err.upstream.unwrap();
+        assert_eq!(upstream.status, Some(502));
+        assert_eq!(upstream.rpc_code, None);
     }
 
     #[test]
@@ -126,6 +133,22 @@ mod tests {
         };
         let api_err: ApiError = err.into();
         assert!(!api_err.retryable);
+        let upstream = api_err.upstream.unwrap();
+        assert_eq!(upstream.status, Some(400));
+        assert_eq!(upstream.rpc_code, None);
+    }
+
+    #[test]
+    fn mcp_error_rpc_code_is_preserved_without_fake_status() {
+        let err = TuhucarError::McpError {
+            code: -32007,
+            message: "Rejected".into(),
+        };
+        let api_err: ApiError = err.into();
+        assert!(!api_err.retryable);
+        let upstream = api_err.upstream.unwrap();
+        assert_eq!(upstream.status, None);
+        assert_eq!(upstream.rpc_code, Some(-32007));
     }
 
     #[test]
