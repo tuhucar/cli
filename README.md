@@ -119,6 +119,29 @@ TuhuCar CLI ships with embedded skill assets and platform-specific installation 
 
 After installing the CLI, run `tuhucar skill install` to register the bundled skills on detected platforms.
 
+## ClawHub Publishing
+
+The ClawHub-ready publish source lives in `skills/clawhub/tuhucar-knowledge-assistant/`.
+It is intentionally self-contained and separate from the bundled local assistant skills used by `tuhucar skill install`.
+
+Example publish flow:
+
+```bash
+clawhub login
+
+clawhub publish ./skills/clawhub/tuhucar-knowledge-assistant \
+  --slug tuhucar-knowledge-assistant \
+  --name "TuhuCar Knowledge Assistant" \
+  --version 0.0.2 \
+  --tags latest \
+  --changelog "Initial ClawHub release"
+```
+
+If you update the CLI behavior that the skill depends on, keep these files aligned:
+
+- `skills/tuhucar-*` for bundled local assistant installs
+- `skills/clawhub/tuhucar-knowledge-assistant/` for ClawHub publishing
+
 ## Architecture
 
 The project is organized as a small Rust workspace with clear module boundaries.
@@ -130,6 +153,7 @@ The project is organized as a small Rust workspace with clear module boundaries.
 | `crates/tuhucar-car` | Car matching support library retained in workspace modules |
 | `crates/tuhucar-cli` | User-facing CLI binary and command dispatch |
 | `skills/` | Assistant skill definitions and references |
+| `skills/clawhub/` | Self-contained ClawHub publishable skill bundles |
 | `npm/` | npm distribution package |
 | `scripts/` | Installer and release support scripts |
 
