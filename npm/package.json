@@ -1,11 +1,13 @@
 {
   "name": "@tuhucar/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "途虎养车 CLI 工具 — 车型匹配与养车知识查询",
   "bin": {
     "tuhucar": "bin/tuhucar.js"
   },
   "scripts": {
+    "prepack": "node scripts/prepare-package.js",
+    "postpack": "node scripts/cleanup-package.js",
     "postinstall": "node scripts/install.js"
   },
   "repository": {

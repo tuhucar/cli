@@ -2,6 +2,6 @@
   "name": "tuhucar",
   "displayName": "TuhuCar 途虎养车",
   "description": "Car maintenance knowledge assistant",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "contextFile": "GEMINI.md"
 }

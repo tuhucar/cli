@@ -217,8 +217,12 @@ fn markdown_mode_shows_update_notice_on_stderr() {
     // Write update_check indicating an available update
     std::fs::write(
         tuhucar_dir.join(".update_check"),
-        r#"{"checked_at":"1700000000","current":"0.1.0","latest":"9.9.9","status":"update_available","install_source":"unknown"}"#,
-    ).unwrap();
+        format!(
+            r#"{{"checked_at":"1700000000","current":"{}","latest":"9.9.9","status":"update_available","install_source":"unknown"}}"#,
+            env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .unwrap();
     // Run a command that succeeds without config (schema doesn't need config)
     let output = with_test_home(&mut tuhucar(), &tmp)
         .args(["knowledge", "schema"])
