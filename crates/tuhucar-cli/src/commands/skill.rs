@@ -87,12 +87,8 @@ fn print_summary(action: &str, results: &[PlatformResult]) {
         println!("  {} {:<14} \u{2014} {}", icon, r.name, detail);
     }
 
-    let any_installed = results
-        .iter()
-        .any(|r| matches!(r.status, PlatformStatus::Installed));
-    let any_failed = results
-        .iter()
-        .any(|r| matches!(r.status, PlatformStatus::Failed(_)));
+    let any_installed = results.iter().any(|r| matches!(r.status, PlatformStatus::Installed));
+    let any_failed = results.iter().any(|r| matches!(r.status, PlatformStatus::Failed(_)));
 
     println!();
     if any_installed {
@@ -294,10 +290,7 @@ mod tests {
 
     #[test]
     fn resolve_codex_home_falls_back_to_default_directory() {
-        let temp_home = std::env::temp_dir().join(format!(
-            "tuhucar-skill-test-{}",
-            std::process::id()
-        ));
+        let temp_home = std::env::temp_dir().join(format!("tuhucar-skill-test-{}", std::process::id()));
         let codex_home = temp_home.join(".codex");
         let _ = std::fs::remove_dir_all(&temp_home);
         std::fs::create_dir_all(&codex_home).unwrap();
@@ -311,10 +304,7 @@ mod tests {
 
     #[test]
     fn resolve_opencode_dir_prefers_xdg_directory() {
-        let temp_home = std::env::temp_dir().join(format!(
-            "tuhucar-opencode-test-{}",
-            std::process::id()
-        ));
+        let temp_home = std::env::temp_dir().join(format!("tuhucar-opencode-test-{}", std::process::id()));
         let xdg_dir = temp_home.join(".config").join("opencode");
         let legacy_dir = temp_home.join(".opencode");
         let _ = std::fs::remove_dir_all(&temp_home);
@@ -403,9 +393,7 @@ fn install_opencode(home: &Path) -> PlatformResult {
             .entry("plugins")
             .or_insert_with(|| serde_json::json!([]))
             .as_array_mut()
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::InvalidData, "plugins is not an array")
-            })?;
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "plugins is not an array"))?;
 
         // Remove existing tuhucar entry if present
         plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
@@ -454,10 +442,7 @@ fn uninstall_opencode(home: &Path) -> PlatformResult {
             if let Ok(mut config) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(plugins) = config.get_mut("plugins").and_then(|p| p.as_array_mut()) {
                     plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
-                    let _ = std::fs::write(
-                        &config_path,
-                        serde_json::to_string_pretty(&config).unwrap(),
-                    );
+                    let _ = std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap());
                 }
             }
         }
