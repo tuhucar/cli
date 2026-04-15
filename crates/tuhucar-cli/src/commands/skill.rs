@@ -283,52 +283,6 @@ fn uninstall_codex(home: &Path) -> PlatformResult {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{build_opencode_plugin_entry, resolve_codex_home, resolve_opencode_dir};
-    use std::path::PathBuf;
-
-    #[test]
-    fn resolve_codex_home_falls_back_to_default_directory() {
-        let temp_home = std::env::temp_dir().join(format!("tuhucar-skill-test-{}", std::process::id()));
-        let codex_home = temp_home.join(".codex");
-        let _ = std::fs::remove_dir_all(&temp_home);
-        std::fs::create_dir_all(&codex_home).unwrap();
-        std::env::remove_var("CODEX_HOME");
-
-        let resolved = resolve_codex_home(&temp_home).unwrap();
-        assert_eq!(resolved, codex_home);
-
-        let _ = std::fs::remove_dir_all(&temp_home);
-    }
-
-    #[test]
-    fn resolve_opencode_dir_prefers_xdg_directory() {
-        let temp_home = std::env::temp_dir().join(format!("tuhucar-opencode-test-{}", std::process::id()));
-        let xdg_dir = temp_home.join(".config").join("opencode");
-        let legacy_dir = temp_home.join(".opencode");
-        let _ = std::fs::remove_dir_all(&temp_home);
-        std::fs::create_dir_all(&xdg_dir).unwrap();
-        std::fs::create_dir_all(&legacy_dir).unwrap();
-        std::env::remove_var("OPENCODE_CONFIG_DIR");
-
-        let resolved = resolve_opencode_dir(&temp_home).unwrap();
-        assert_eq!(resolved, xdg_dir);
-
-        let _ = std::fs::remove_dir_all(&temp_home);
-    }
-
-    #[test]
-    fn build_opencode_plugin_entry_uses_resolved_path() {
-        let skills_dir = PathBuf::from("/tmp/custom-opencode/skills/tuhucar");
-        let entry = build_opencode_plugin_entry(&skills_dir);
-
-        assert_eq!(entry["name"], "tuhucar");
-        assert_eq!(entry["type"], "skill");
-        assert_eq!(entry["path"], "/tmp/custom-opencode/skills/tuhucar");
-    }
-}
-
 // --- OpenCode ---
 
 fn resolve_opencode_dir(home: &Path) -> Option<PathBuf> {
@@ -495,5 +449,51 @@ fn uninstall_gemini(home: &Path) -> PlatformResult {
     PlatformResult {
         name: "Gemini CLI",
         status: PlatformStatus::Installed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_opencode_plugin_entry, resolve_codex_home, resolve_opencode_dir};
+    use std::path::PathBuf;
+
+    #[test]
+    fn resolve_codex_home_falls_back_to_default_directory() {
+        let temp_home = std::env::temp_dir().join(format!("tuhucar-skill-test-{}", std::process::id()));
+        let codex_home = temp_home.join(".codex");
+        let _ = std::fs::remove_dir_all(&temp_home);
+        std::fs::create_dir_all(&codex_home).unwrap();
+        std::env::remove_var("CODEX_HOME");
+
+        let resolved = resolve_codex_home(&temp_home).unwrap();
+        assert_eq!(resolved, codex_home);
+
+        let _ = std::fs::remove_dir_all(&temp_home);
+    }
+
+    #[test]
+    fn resolve_opencode_dir_prefers_xdg_directory() {
+        let temp_home = std::env::temp_dir().join(format!("tuhucar-opencode-test-{}", std::process::id()));
+        let xdg_dir = temp_home.join(".config").join("opencode");
+        let legacy_dir = temp_home.join(".opencode");
+        let _ = std::fs::remove_dir_all(&temp_home);
+        std::fs::create_dir_all(&xdg_dir).unwrap();
+        std::fs::create_dir_all(&legacy_dir).unwrap();
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+
+        let resolved = resolve_opencode_dir(&temp_home).unwrap();
+        assert_eq!(resolved, xdg_dir);
+
+        let _ = std::fs::remove_dir_all(&temp_home);
+    }
+
+    #[test]
+    fn build_opencode_plugin_entry_uses_resolved_path() {
+        let skills_dir = PathBuf::from("/tmp/custom-opencode/skills/tuhucar");
+        let entry = build_opencode_plugin_entry(&skills_dir);
+
+        assert_eq!(entry["name"], "tuhucar");
+        assert_eq!(entry["type"], "skill");
+        assert_eq!(entry["path"], "/tmp/custom-opencode/skills/tuhucar");
     }
 }
