@@ -5,9 +5,7 @@ fn tuhucar() -> Command {
 }
 
 fn with_test_home<'a>(cmd: &'a mut Command, dir: &std::path::Path) -> &'a mut Command {
-    cmd.env("TUHUCAR_HOME", dir)
-        .env("HOME", dir)
-        .env("USERPROFILE", dir);
+    cmd.env("TUHUCAR_HOME", dir).env("HOME", dir).env("USERPROFILE", dir);
 
     if let Some(path_str) = dir.to_str() {
         if let Some((drive, rest)) = path_str.split_once(':') {
@@ -47,10 +45,7 @@ fn version_flag_shows_version() {
 
 #[test]
 fn missing_subcommand_in_json_returns_envelope() {
-    let output = tuhucar()
-        .args(["--format", "json", "knowledge"])
-        .output()
-        .unwrap();
+    let output = tuhucar().args(["--format", "json", "knowledge"]).output().unwrap();
     // clap will error because 'knowledge' needs a subcommand
     assert!(!output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -138,10 +133,7 @@ fn config_init_json_returns_envelope() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert!(json["data"].is_object());
-    assert!(json["data"]["path"]
-        .as_str()
-        .unwrap()
-        .contains("config.toml"));
+    assert!(json["data"]["path"].as_str().unwrap().contains("config.toml"));
     assert!(json["data"]["message"].as_str().unwrap().contains("saved"));
     cleanup(&tmp);
 }
@@ -201,10 +193,7 @@ fn config_show_accepts_legacy_base_url() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        json["data"]["api"]["endpoint"],
-        "https://legacy.example.com"
-    );
+    assert_eq!(json["data"]["api"]["endpoint"], "https://legacy.example.com");
     cleanup(&tmp);
 }
 

@@ -10,6 +10,4 @@ pub use command::Command;
 pub use config::Config;
 pub use error::{ApiError, TuhucarError};
 pub use mcp::McpClient;
-pub use types::{
-    CommandSchema, ErrorSchemaEntry, Notice, OutputFormat, Render, Response, ResponseMeta,
-};
+pub use types::{CommandSchema, ErrorSchemaEntry, Notice, OutputFormat, Render, Response, ResponseMeta};

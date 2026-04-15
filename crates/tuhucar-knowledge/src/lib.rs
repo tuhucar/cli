@@ -25,10 +25,7 @@ impl KnowledgeCommand {
             name: "knowledge.query".to_string(),
             description: "查询养车知识".to_string(),
             input: serde_json::to_value(schemars::schema_for!(KnowledgeQueryInput)).unwrap(),
-            wire_output: serde_json::to_value(schemars::schema_for!(
-                Response<KnowledgeQueryOutput>
-            ))
-            .unwrap(),
+            wire_output: serde_json::to_value(schemars::schema_for!(Response<KnowledgeQueryOutput>)).unwrap(),
             errors: vec![ErrorSchemaEntry {
                 code: "MCP_ERROR".into(),
                 description: "MCP 服务调用失败".into(),

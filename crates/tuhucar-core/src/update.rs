@@ -115,10 +115,7 @@ pub fn pending_notice() -> Option<Notice> {
     }
 
     let message = match check.install_source {
-        InstallSource::Npm => format!(
-            "新版本 {} 可用，请运行: npm update -g @tuhucar/cli",
-            check.latest
-        ),
+        InstallSource::Npm => format!("新版本 {} 可用，请运行: npm update -g @tuhucar/cli", check.latest),
         InstallSource::Homebrew => {
             format!("新版本 {} 可用，请运行: brew upgrade tuhucar", check.latest)
         }
@@ -160,9 +157,7 @@ fn atomic_write(path: &PathBuf, content: &str) {
 }
 
 fn now_epoch_secs() -> String {
-    let d = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap();
+    let d = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
     format!("{}", d.as_secs())
 }
 
@@ -195,10 +190,7 @@ mod tests {
             classify_path("/home/linuxbrew/.linuxbrew/homebrew/bin/tuhucar"),
             InstallSource::Homebrew
         );
-        assert_eq!(
-            classify_path("/usr/local/bin/tuhucar"),
-            InstallSource::Unknown
-        );
+        assert_eq!(classify_path("/usr/local/bin/tuhucar"), InstallSource::Unknown);
     }
 
     #[test]
@@ -543,9 +535,7 @@ mod tests {
             },
         );
         let notice = pending_notice().unwrap();
-        let Notice::Update {
-            latest, message, ..
-        } = notice;
+        let Notice::Update { latest, message, .. } = notice;
         assert_eq!(latest, "0.3.0");
         assert!(message.contains("手动更新"));
         cleanup_test_home(&dir);

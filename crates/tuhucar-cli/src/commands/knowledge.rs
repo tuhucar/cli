@@ -33,10 +33,7 @@ pub async fn run(
             println!("{}", serde_json::to_string_pretty(&schema).unwrap());
             Ok(())
         }
-        KnowledgeAction::Query {
-            question,
-            session_id,
-        } => {
+        KnowledgeAction::Query { question, session_id } => {
             if dry_run {
                 println!(
                     "MCP tools/call mkt-intelligent-skill-dialogue {{\"question\":\"{}\",\"session_id\":{:?}}}",
@@ -47,10 +44,7 @@ pub async fn run(
             let config = Config::load()?;
             let client = McpClient::connect(&config).await?;
             let cmd = KnowledgeCommand::new(client);
-            let input = KnowledgeQueryInput {
-                question,
-                session_id,
-            };
+            let input = KnowledgeQueryInput { question, session_id };
             let result = cmd.execute(input).await?;
             let resp = Response::success(result, Some(meta));
             println!("{}", format_response(&resp, format));

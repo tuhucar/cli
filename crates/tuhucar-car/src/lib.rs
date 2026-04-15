@@ -25,8 +25,7 @@ impl CarCommand {
             name: "car.match".to_string(),
             description: "模糊匹配五级车型".to_string(),
             input: serde_json::to_value(schemars::schema_for!(CarMatchInput)).unwrap(),
-            wire_output: serde_json::to_value(schemars::schema_for!(Response<CarMatchResult>))
-                .unwrap(),
+            wire_output: serde_json::to_value(schemars::schema_for!(Response<CarMatchResult>)).unwrap(),
             errors: vec![
                 ErrorSchemaEntry {
                     code: "CAR_NOT_FOUND".into(),

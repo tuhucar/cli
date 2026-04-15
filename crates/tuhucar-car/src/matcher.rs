@@ -7,11 +7,10 @@ pub async fn match_car(client: &McpClient, query: &str) -> Result<CarMatchResult
         .call_tool("car_match", serde_json::json!({ "query": query }))
         .await?;
 
-    let candidates: Vec<CarMatchCandidate> =
-        serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
-            code: -1,
-            message: format!("Failed to parse car match response: {}", e),
-        })?;
+    let candidates: Vec<CarMatchCandidate> = serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
+        code: -1,
+        message: format!("Failed to parse car match response: {}", e),
+    })?;
 
     if candidates.is_empty() {
         return Err(TuhucarError::CarNotFound {

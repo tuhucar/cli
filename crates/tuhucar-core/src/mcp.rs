@@ -86,16 +86,8 @@ fn parse_jsonrpc_body(body: &str) -> Result<JsonRpcResponse, TuhucarError> {
         }
         if let Ok(resp) = serde_json::from_str::<JsonRpcResponse>(payload) {
             // Skip progress-only frames.
-            let is_progress = resp
-                .result
-                .as_ref()
-                .and_then(|r| r.get("progress"))
-                .is_some()
-                && resp
-                    .result
-                    .as_ref()
-                    .and_then(|r| r.get("content"))
-                    .is_none();
+            let is_progress = resp.result.as_ref().and_then(|r| r.get("progress")).is_some()
+                && resp.result.as_ref().and_then(|r| r.get("content")).is_none();
             if is_progress {
                 continue;
             }
@@ -148,11 +140,7 @@ impl McpClient {
             if let Some(sid) = result.get("sessionId").and_then(|v| v.as_str()) {
                 self.session_id = Some(sid.to_string());
             }
-            if result
-                .get("capabilities")
-                .and_then(|c| c.get("tools"))
-                .is_none()
-            {
+            if result.get("capabilities").and_then(|c| c.get("tools")).is_none() {
                 return Err(TuhucarError::McpError {
                     code: -1,
                     message: "MCP server does not advertise tools capability".into(),
@@ -171,11 +159,7 @@ impl McpClient {
     }
 
     /// Call an MCP tool and return the text result.
-    pub async fn call_tool(
-        &self,
-        tool_name: &str,
-        arguments: serde_json::Value,
-    ) -> Result<String, TuhucarError> {
+    pub async fn call_tool(&self, tool_name: &str, arguments: serde_json::Value) -> Result<String, TuhucarError> {
         let params = ToolCallParams {
             name: tool_name.to_string(),
             arguments,
@@ -192,15 +176,14 @@ impl McpClient {
             });
         }
 
-        let result: ToolCallResult =
-            serde_json::from_value(resp.result.ok_or_else(|| TuhucarError::McpError {
-                code: -1,
-                message: "Empty result from tools/call".into(),
-            })?)
-            .map_err(|e| TuhucarError::McpError {
-                code: -1,
-                message: format!("Failed to parse tool result: {}", e),
-            })?;
+        let result: ToolCallResult = serde_json::from_value(resp.result.ok_or_else(|| TuhucarError::McpError {
+            code: -1,
+            message: "Empty result from tools/call".into(),
+        })?)
+        .map_err(|e| TuhucarError::McpError {
+            code: -1,
+            message: format!("Failed to parse tool result: {}", e),
+        })?;
 
         if result.is_error {
             let msg = result
@@ -208,10 +191,7 @@ impl McpClient {
                 .first()
                 .map(|c| c.text.clone())
                 .unwrap_or_else(|| "Tool returned an error".into());
-            return Err(TuhucarError::McpError {
-                code: -1,
-                message: msg,
-            });
+            return Err(TuhucarError::McpError { code: -1, message: msg });
         }
 
         result
@@ -306,15 +286,7 @@ mod tests {
     fn parses_plain_json_body() {
         let body = r#"{"jsonrpc":"2.0","id":"1","result":{"sessionId":"abc","capabilities":{"tools":{}}}}"#;
         let resp = parse_jsonrpc_body(body).unwrap();
-        assert_eq!(
-            resp.result
-                .unwrap()
-                .get("sessionId")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "abc"
-        );
+        assert_eq!(resp.result.unwrap().get("sessionId").unwrap().as_str().unwrap(), "abc");
     }
 
     #[test]

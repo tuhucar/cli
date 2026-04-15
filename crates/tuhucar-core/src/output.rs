@@ -4,12 +4,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 fn is_upstream_rpc_error(err: &ApiError) -> bool {
-    err.code == "MCP_ERROR"
-        && err
-            .upstream
-            .as_ref()
-            .and_then(|upstream| upstream.rpc_code)
-            .is_some()
+    err.code == "MCP_ERROR" && err.upstream.as_ref().and_then(|upstream| upstream.rpc_code).is_some()
 }
 
 pub fn format_markdown_error(err: &ApiError) -> String {
@@ -29,10 +24,7 @@ pub fn format_markdown_error(err: &ApiError) -> String {
     out
 }
 
-pub fn format_response<T: Serialize + JsonSchema + Render>(
-    resp: &Response<T>,
-    format: OutputFormat,
-) -> String {
+pub fn format_response<T: Serialize + JsonSchema + Render>(resp: &Response<T>, format: OutputFormat) -> String {
     match format {
         OutputFormat::Json => serde_json::to_string_pretty(resp).unwrap(),
         OutputFormat::Markdown => {
@@ -87,12 +79,7 @@ mod tests {
 
     #[test]
     fn json_format_returns_valid_json() {
-        let resp = Response::success(
-            TestData {
-                value: "hello".into(),
-            },
-            None,
-        );
+        let resp = Response::success(TestData { value: "hello".into() }, None);
         let output = format_response(&resp, OutputFormat::Json);
         let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(parsed["data"]["value"], "hello");
@@ -100,12 +87,7 @@ mod tests {
 
     #[test]
     fn markdown_format_renders_data() {
-        let resp = Response::success(
-            TestData {
-                value: "hello".into(),
-            },
-            None,
-        );
+        let resp = Response::success(TestData { value: "hello".into() }, None);
         let output = format_response(&resp, OutputFormat::Markdown);
         assert!(output.contains("Value: hello"));
     }

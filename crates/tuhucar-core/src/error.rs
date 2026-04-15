@@ -83,10 +83,7 @@ impl From<TuhucarError> for ApiError {
                     message,
                 }),
             },
-            TuhucarError::InvalidArgs {
-                message,
-                suggestion,
-            } => ApiError {
+            TuhucarError::InvalidArgs { message, suggestion } => ApiError {
                 code: "INVALID_ARGS".into(),
                 message,
                 retryable: false,

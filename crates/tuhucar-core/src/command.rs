@@ -19,8 +19,7 @@ pub trait Command: Send + Sync {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input: serde_json::to_value(schemars::schema_for!(Self::Input)).unwrap(),
-            wire_output: serde_json::to_value(schemars::schema_for!(Response<Self::Output>))
-                .unwrap(),
+            wire_output: serde_json::to_value(schemars::schema_for!(Response<Self::Output>)).unwrap(),
             errors: self.error_schemas(),
         }
     }

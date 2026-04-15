@@ -58,18 +58,14 @@ impl Config {
         }
         let content = std::fs::read_to_string(&path)
             .map_err(|e| TuhucarError::ConfigParse(format!("{}: {}", path.display(), e)))?;
-        toml::from_str(&content)
-            .map_err(|e| TuhucarError::ConfigParse(format!("{}: {}", path.display(), e)))
+        toml::from_str(&content).map_err(|e| TuhucarError::ConfigParse(format!("{}: {}", path.display(), e)))
     }
 
     pub fn save(&self) -> Result<(), TuhucarError> {
         let dir = Self::config_dir();
-        std::fs::create_dir_all(&dir)
-            .map_err(|e| TuhucarError::ConfigParse(format!("Cannot create dir: {}", e)))?;
-        let content =
-            toml::to_string_pretty(self).map_err(|e| TuhucarError::ConfigParse(e.to_string()))?;
-        std::fs::write(Self::config_path(), content)
-            .map_err(|e| TuhucarError::ConfigParse(e.to_string()))
+        std::fs::create_dir_all(&dir).map_err(|e| TuhucarError::ConfigParse(format!("Cannot create dir: {}", e)))?;
+        let content = toml::to_string_pretty(self).map_err(|e| TuhucarError::ConfigParse(e.to_string()))?;
+        std::fs::write(Self::config_path(), content).map_err(|e| TuhucarError::ConfigParse(e.to_string()))
     }
 
     pub fn default_config() -> Self {
@@ -87,11 +83,7 @@ fn resolve_home_dir() -> Option<PathBuf> {
     std::env::var_os("TUHUCAR_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .filter(|v| !v.is_empty())
-                .map(PathBuf::from)
-        })
+        .or_else(|| std::env::var_os("HOME").filter(|v| !v.is_empty()).map(PathBuf::from))
         .or_else(|| {
             std::env::var_os("USERPROFILE")
                 .filter(|v| !v.is_empty())
@@ -176,10 +168,7 @@ base_url = "https://legacy.example.com"
     #[test]
     fn default_config_has_expected_values() {
         let config = Config::default_config();
-        assert_eq!(
-            config.api.endpoint,
-            "https://ai-gateway.tuhu.cn/mcp/gateway/v1"
-        );
+        assert_eq!(config.api.endpoint, "https://ai-gateway.tuhu.cn/mcp/gateway/v1");
         assert_eq!(config.api.timeout, 300);
         assert_eq!(config.output.default_format, "markdown");
     }

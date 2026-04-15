@@ -39,9 +39,7 @@ pub async fn query_knowledge(
     session_id: Option<&str>,
 ) -> Result<KnowledgeQueryOutput, TuhucarError> {
     let now = now_millis();
-    let session = session_id
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| now.to_string());
+    let session = session_id.map(|s| s.to_string()).unwrap_or_else(|| now.to_string());
     // Gateway requires msgId to be a pure-digit string (Long → String).
     // Combine timestamp (ms) with a 3-digit zero-padded counter to stay unique
     // within the same millisecond without introducing non-digit characters.
@@ -60,11 +58,10 @@ pub async fn query_knowledge(
 
     let body = client.call_tool(TOOL_NAME, arguments).await?;
 
-    let envelope: GatewayEnvelope =
-        serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
-            code: -1,
-            message: format!("Failed to parse knowledge response: {}: {}", e, body),
-        })?;
+    let envelope: GatewayEnvelope = serde_json::from_str(&body).map_err(|e| TuhucarError::McpError {
+        code: -1,
+        message: format!("Failed to parse knowledge response: {}: {}", e, body),
+    })?;
 
     if envelope.code != 10000 {
         return Err(TuhucarError::McpError {
