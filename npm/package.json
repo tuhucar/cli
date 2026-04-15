@@ -1,6 +1,6 @@
 {
   "name": "@tuhucar/cli",
-  "version": "0.1.1",
+  "version": "0.0.1",
   "description": "途虎养车 CLI 工具 — 车型匹配与养车知识查询",
   "bin": {
     "tuhucar": "bin/tuhucar.js"
