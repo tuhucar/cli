@@ -60,7 +60,7 @@ fn uninstall_skills() -> Result<(), TuhucarError> {
     let results = vec![
         uninstall_claude_code(&home),
         uninstall_cursor(&home),
-        uninstall_codex(),
+        uninstall_codex(&home),
         uninstall_opencode(&home),
         uninstall_gemini(&home),
     ];
@@ -218,10 +218,26 @@ fn uninstall_cursor(home: &Path) -> PlatformResult {
 
 // --- Codex ---
 
-fn install_codex(_home: &Path) -> PlatformResult {
-    let codex_home = match std::env::var("CODEX_HOME") {
-        Ok(h) => PathBuf::from(h),
-        Err(_) => {
+fn resolve_codex_home(home: &Path) -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("CODEX_HOME") {
+        let codex_home = PathBuf::from(path);
+        if codex_home.exists() {
+            return Some(codex_home);
+        }
+    }
+
+    let default_home = home.join(".codex");
+    if default_home.exists() {
+        return Some(default_home);
+    }
+
+    None
+}
+
+fn install_codex(home: &Path) -> PlatformResult {
+    let codex_home = match resolve_codex_home(home) {
+        Some(path) => path,
+        None => {
             return PlatformResult {
                 name: "Codex",
                 status: PlatformStatus::Skipped("not detected".into()),
@@ -247,10 +263,10 @@ fn install_codex(_home: &Path) -> PlatformResult {
     }
 }
 
-fn uninstall_codex() -> PlatformResult {
-    let codex_home = match std::env::var("CODEX_HOME") {
-        Ok(h) => PathBuf::from(h),
-        Err(_) => {
+fn uninstall_codex(home: &Path) -> PlatformResult {
+    let codex_home = match resolve_codex_home(home) {
+        Some(path) => path,
+        None => {
             return PlatformResult {
                 name: "Codex",
                 status: PlatformStatus::Skipped("not detected".into()),
@@ -271,19 +287,99 @@ fn uninstall_codex() -> PlatformResult {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{build_opencode_plugin_entry, resolve_codex_home, resolve_opencode_dir};
+    use std::path::PathBuf;
+
+    #[test]
+    fn resolve_codex_home_falls_back_to_default_directory() {
+        let temp_home = std::env::temp_dir().join(format!(
+            "tuhucar-skill-test-{}",
+            std::process::id()
+        ));
+        let codex_home = temp_home.join(".codex");
+        let _ = std::fs::remove_dir_all(&temp_home);
+        std::fs::create_dir_all(&codex_home).unwrap();
+        std::env::remove_var("CODEX_HOME");
+
+        let resolved = resolve_codex_home(&temp_home).unwrap();
+        assert_eq!(resolved, codex_home);
+
+        let _ = std::fs::remove_dir_all(&temp_home);
+    }
+
+    #[test]
+    fn resolve_opencode_dir_prefers_xdg_directory() {
+        let temp_home = std::env::temp_dir().join(format!(
+            "tuhucar-opencode-test-{}",
+            std::process::id()
+        ));
+        let xdg_dir = temp_home.join(".config").join("opencode");
+        let legacy_dir = temp_home.join(".opencode");
+        let _ = std::fs::remove_dir_all(&temp_home);
+        std::fs::create_dir_all(&xdg_dir).unwrap();
+        std::fs::create_dir_all(&legacy_dir).unwrap();
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+
+        let resolved = resolve_opencode_dir(&temp_home).unwrap();
+        assert_eq!(resolved, xdg_dir);
+
+        let _ = std::fs::remove_dir_all(&temp_home);
+    }
+
+    #[test]
+    fn build_opencode_plugin_entry_uses_resolved_path() {
+        let skills_dir = PathBuf::from("/tmp/custom-opencode/skills/tuhucar");
+        let entry = build_opencode_plugin_entry(&skills_dir);
+
+        assert_eq!(entry["name"], "tuhucar");
+        assert_eq!(entry["type"], "skill");
+        assert_eq!(entry["path"], "/tmp/custom-opencode/skills/tuhucar");
+    }
+}
+
 // --- OpenCode ---
 
-const OPENCODE_PLUGIN_ENTRY: &str =
-    r#"{"name":"tuhucar","type":"skill","path":"~/.opencode/skills/tuhucar"}"#;
+fn resolve_opencode_dir(home: &Path) -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("OPENCODE_CONFIG_DIR") {
+        let opencode_dir = PathBuf::from(path);
+        if opencode_dir.exists() {
+            return Some(opencode_dir);
+        }
+    }
+
+    let xdg_dir = home.join(".config").join("opencode");
+    if xdg_dir.exists() {
+        return Some(xdg_dir);
+    }
+
+    let legacy_dir = home.join(".opencode");
+    if legacy_dir.exists() {
+        return Some(legacy_dir);
+    }
+
+    None
+}
+
+fn build_opencode_plugin_entry(skills_dir: &Path) -> serde_json::Value {
+    serde_json::json!({
+        "name": "tuhucar",
+        "type": "skill",
+        "path": skills_dir.to_string_lossy(),
+    })
+}
 
 fn install_opencode(home: &Path) -> PlatformResult {
-    let opencode_dir = home.join(".opencode");
-    if !opencode_dir.exists() {
-        return PlatformResult {
-            name: "OpenCode",
-            status: PlatformStatus::Skipped("not detected".into()),
-        };
-    }
+    let opencode_dir = match resolve_opencode_dir(home) {
+        Some(path) => path,
+        None => {
+            return PlatformResult {
+                name: "OpenCode",
+                status: PlatformStatus::Skipped("not detected".into()),
+            }
+        }
+    };
     let result = (|| -> std::io::Result<()> {
         // Write skill files
         let skills_dest = opencode_dir.join("skills").join("tuhucar");
@@ -298,7 +394,7 @@ fn install_opencode(home: &Path) -> PlatformResult {
             serde_json::json!({})
         };
 
-        let entry: serde_json::Value = serde_json::from_str(OPENCODE_PLUGIN_ENTRY).unwrap();
+        let entry = build_opencode_plugin_entry(&skills_dest);
 
         // Get or create plugins array
         let plugins = config
@@ -331,7 +427,15 @@ fn install_opencode(home: &Path) -> PlatformResult {
 }
 
 fn uninstall_opencode(home: &Path) -> PlatformResult {
-    let opencode_dir = home.join(".opencode");
+    let opencode_dir = match resolve_opencode_dir(home) {
+        Some(path) => path,
+        None => {
+            return PlatformResult {
+                name: "OpenCode",
+                status: PlatformStatus::Skipped("not detected".into()),
+            }
+        }
+    };
     let skills_dir = opencode_dir.join("skills").join("tuhucar");
     let config_path = opencode_dir.join("opencode.json");
 
