@@ -149,3 +149,45 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  homebrew-tap:
+    name: Update Homebrew Tap
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: tuhucar/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: homebrew-tap
+
+      - name: Render formula
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REVISION="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          bash ./scripts/render-homebrew-formula.sh "$VERSION" "$REVISION" artifacts homebrew-tap/Formula/tuhucar.rb
+
+      - name: Commit and push tap update
+        shell: bash
+        working-directory: homebrew-tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- Formula/tuhucar.rb; then
+            echo "No formula changes to commit."
+            exit 0
+          fi
+
+          git add Formula/tuhucar.rb
+          git commit -m "chore: update tuhucar formula for ${GITHUB_REF_NAME}"
+          git push origin HEAD:main
