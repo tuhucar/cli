@@ -7,7 +7,6 @@ const SHARED_SKILL: &str = include_str!("../../../../skills/tuhucar-shared/SKILL
 const CAR_ASSISTANT_SKILL: &str = include_str!("../../../../skills/tuhucar-car-assistant/SKILL.md");
 const COMMAND_REFERENCE: &str =
     include_str!("../../../../skills/tuhucar-car-assistant/references/command-reference.md");
-const CLAUDE_PLUGIN_JSON: &str = include_str!("../../../../.claude-plugin/plugin.json");
 const CURSOR_PLUGIN_JSON: &str = include_str!("../../../../.cursor-plugin/plugin.json");
 const GEMINI_MD: &str = include_str!("../../../../GEMINI.md");
 const GEMINI_EXTENSION_JSON: &str = include_str!("../../../../gemini-extension.json");
@@ -99,19 +98,75 @@ fn print_summary(action: &str, results: &[PlatformResult]) {
     }
 }
 
-/// Write embedded skill files to a directory
-fn write_skill_files(dest: &Path) -> std::io::Result<()> {
-    // tuhucar-shared/SKILL.md
-    let shared_dir = dest.join("tuhucar-shared");
-    std::fs::create_dir_all(&shared_dir)?;
-    std::fs::write(shared_dir.join("SKILL.md"), SHARED_SKILL)?;
+fn write_shared_skill(dest: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dest)?;
+    std::fs::write(dest.join("SKILL.md"), SHARED_SKILL)?;
+    Ok(())
+}
 
-    // tuhucar-car-assistant/SKILL.md + references/command-reference.md
-    let car_dir = dest.join("tuhucar-car-assistant");
-    let ref_dir = car_dir.join("references");
+fn write_knowledge_skill(dest: &Path) -> std::io::Result<()> {
+    let ref_dir = dest.join("references");
     std::fs::create_dir_all(&ref_dir)?;
-    std::fs::write(car_dir.join("SKILL.md"), CAR_ASSISTANT_SKILL)?;
+    std::fs::write(dest.join("SKILL.md"), CAR_ASSISTANT_SKILL)?;
     std::fs::write(ref_dir.join("command-reference.md"), COMMAND_REFERENCE)?;
+    Ok(())
+}
+
+/// Write embedded skill files to a namespaced directory.
+fn write_skill_files(dest: &Path) -> std::io::Result<()> {
+    write_shared_skill(&dest.join("tuhucar-shared"))?;
+    write_knowledge_skill(&dest.join("tuhucar-car-assistant"))?;
+    Ok(())
+}
+
+/// Write skills into directories that assistants discover directly.
+fn write_direct_skill_files(skills_root: &Path) -> std::io::Result<()> {
+    write_shared_skill(&skills_root.join("tuhucar-shared"))?;
+    write_knowledge_skill(&skills_root.join("tuhucar-knowledge-assistant"))?;
+    Ok(())
+}
+
+fn prune_opencode_legacy_plugin_entries(config: &mut serde_json::Value) -> bool {
+    let Some(config_object) = config.as_object_mut() else {
+        return false;
+    };
+
+    let (changed, should_remove_key) = {
+        let Some(plugins) = config_object.get_mut("plugins").and_then(|value| value.as_array_mut()) else {
+            return false;
+        };
+
+        let original_len = plugins.len();
+        plugins.retain(|entry| {
+            entry.get("name").and_then(|value| value.as_str()) != Some("tuhucar")
+                || entry.get("type").and_then(|value| value.as_str()) != Some("skill")
+        });
+
+        (plugins.len() != original_len, plugins.is_empty())
+    };
+
+    if should_remove_key {
+        config_object.remove("plugins");
+    }
+
+    changed
+}
+
+fn cleanup_opencode_legacy_plugin_entries(opencode_dir: &Path) -> std::io::Result<()> {
+    for config_path in [opencode_dir.join("opencode.jsonc"), opencode_dir.join("opencode.json")] {
+        if !config_path.exists() {
+            continue;
+        }
+
+        let content = std::fs::read_to_string(&config_path)?;
+        let Ok(mut config) = serde_json::from_str::<serde_json::Value>(&content) else {
+            continue;
+        };
+
+        if prune_opencode_legacy_plugin_entries(&mut config) {
+            std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())?;
+        }
+    }
 
     Ok(())
 }
@@ -127,13 +182,12 @@ fn install_claude_code(home: &Path) -> PlatformResult {
         };
     }
     let result = (|| -> std::io::Result<()> {
-        // Write skill files
-        let skills_dest = claude_dir.join("skills").join("tuhucar");
-        write_skill_files(&skills_dest)?;
-        // Register plugin manifest
-        let plugin_dir = claude_dir.join("plugins").join("tuhucar");
-        std::fs::create_dir_all(&plugin_dir)?;
-        std::fs::write(plugin_dir.join("plugin.json"), CLAUDE_PLUGIN_JSON)?;
+        let skills_root = claude_dir.join("skills");
+        write_direct_skill_files(&skills_root)?;
+
+        // Clean up the legacy namespaced skill/plugin layout from earlier installs.
+        let _ = std::fs::remove_dir_all(skills_root.join("tuhucar"));
+        let _ = std::fs::remove_dir_all(claude_dir.join("plugins").join("tuhucar"));
         Ok(())
     })();
     match result {
@@ -149,15 +203,24 @@ fn install_claude_code(home: &Path) -> PlatformResult {
 }
 
 fn uninstall_claude_code(home: &Path) -> PlatformResult {
-    let skills_dir = home.join(".claude").join("skills").join("tuhucar");
+    let skills_root = home.join(".claude").join("skills");
+    let legacy_skills_dir = skills_root.join("tuhucar");
+    let shared_skill_dir = skills_root.join("tuhucar-shared");
+    let assistant_skill_dir = skills_root.join("tuhucar-knowledge-assistant");
     let plugin_dir = home.join(".claude").join("plugins").join("tuhucar");
-    if !skills_dir.exists() && !plugin_dir.exists() {
+    if !legacy_skills_dir.exists()
+        && !shared_skill_dir.exists()
+        && !assistant_skill_dir.exists()
+        && !plugin_dir.exists()
+    {
         return PlatformResult {
             name: "Claude Code",
             status: PlatformStatus::Skipped("not installed".into()),
         };
     }
-    let _ = std::fs::remove_dir_all(&skills_dir);
+    let _ = std::fs::remove_dir_all(&legacy_skills_dir);
+    let _ = std::fs::remove_dir_all(&shared_skill_dir);
+    let _ = std::fs::remove_dir_all(&assistant_skill_dir);
     let _ = std::fs::remove_dir_all(&plugin_dir);
     PlatformResult {
         name: "Claude Code",
@@ -306,14 +369,6 @@ fn resolve_opencode_dir(home: &Path) -> Option<PathBuf> {
     None
 }
 
-fn build_opencode_plugin_entry(skills_dir: &Path) -> serde_json::Value {
-    serde_json::json!({
-        "name": "tuhucar",
-        "type": "skill",
-        "path": skills_dir.to_string_lossy(),
-    })
-}
-
 fn install_opencode(home: &Path) -> PlatformResult {
     let opencode_dir = match resolve_opencode_dir(home) {
         Some(path) => path,
@@ -325,35 +380,14 @@ fn install_opencode(home: &Path) -> PlatformResult {
         }
     };
     let result = (|| -> std::io::Result<()> {
-        // Write skill files
-        let skills_dest = opencode_dir.join("skills").join("tuhucar");
-        write_skill_files(&skills_dest)?;
+        let skills_root = opencode_dir.join("skills");
+        write_direct_skill_files(&skills_root)?;
 
-        // Edit opencode.json to add plugin entry
-        let config_path = opencode_dir.join("opencode.json");
-        let mut config: serde_json::Value = if config_path.exists() {
-            let content = std::fs::read_to_string(&config_path)?;
-            serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
-        } else {
-            serde_json::json!({})
-        };
+        // Remove the legacy bundled directory from earlier installs.
+        let legacy_bundle_dir = skills_root.join("tuhucar");
+        let _ = std::fs::remove_dir_all(&legacy_bundle_dir);
 
-        let entry = build_opencode_plugin_entry(&skills_dest);
-
-        // Get or create plugins array
-        let plugins = config
-            .as_object_mut()
-            .unwrap()
-            .entry("plugins")
-            .or_insert_with(|| serde_json::json!([]))
-            .as_array_mut()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "plugins is not an array"))?;
-
-        // Remove existing tuhucar entry if present
-        plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
-        plugins.push(entry);
-
-        std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())?;
+        cleanup_opencode_legacy_plugin_entries(&opencode_dir)?;
         Ok(())
     })();
     match result {
@@ -378,33 +412,36 @@ fn uninstall_opencode(home: &Path) -> PlatformResult {
             }
         }
     };
-    let skills_dir = opencode_dir.join("skills").join("tuhucar");
-    let config_path = opencode_dir.join("opencode.json");
+    let skills_root = opencode_dir.join("skills");
+    let legacy_bundle_dir = skills_root.join("tuhucar");
+    let shared_skill_dir = skills_root.join("tuhucar-shared");
+    let assistant_skill_dir = skills_root.join("tuhucar-knowledge-assistant");
+    let has_config_file = opencode_dir.join("opencode.json").exists() || opencode_dir.join("opencode.jsonc").exists();
 
-    if !skills_dir.exists() && !config_path.exists() {
+    if !legacy_bundle_dir.exists() && !shared_skill_dir.exists() && !assistant_skill_dir.exists() && !has_config_file {
         return PlatformResult {
             name: "OpenCode",
             status: PlatformStatus::Skipped("not installed".into()),
         };
     }
 
-    let _ = std::fs::remove_dir_all(&skills_dir);
+    let result = (|| -> std::io::Result<()> {
+        let _ = std::fs::remove_dir_all(&legacy_bundle_dir);
+        let _ = std::fs::remove_dir_all(&shared_skill_dir);
+        let _ = std::fs::remove_dir_all(&assistant_skill_dir);
+        cleanup_opencode_legacy_plugin_entries(&opencode_dir)?;
+        Ok(())
+    })();
 
-    // Remove plugin entry from opencode.json
-    if config_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&config_path) {
-            if let Ok(mut config) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(plugins) = config.get_mut("plugins").and_then(|p| p.as_array_mut()) {
-                    plugins.retain(|p| p.get("name").and_then(|n| n.as_str()) != Some("tuhucar"));
-                    let _ = std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap());
-                }
-            }
-        }
-    }
-
-    PlatformResult {
-        name: "OpenCode",
-        status: PlatformStatus::Installed,
+    match result {
+        Ok(_) => PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Installed,
+        },
+        Err(e) => PlatformResult {
+            name: "OpenCode",
+            status: PlatformStatus::Failed(e.to_string()),
+        },
     }
 }
 
@@ -454,8 +491,10 @@ fn uninstall_gemini(home: &Path) -> PlatformResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_opencode_plugin_entry, resolve_codex_home, resolve_opencode_dir};
-    use std::path::PathBuf;
+    use super::{
+        prune_opencode_legacy_plugin_entries, resolve_codex_home, resolve_opencode_dir, write_direct_skill_files,
+    };
+    use serde_json::json;
 
     #[test]
     fn resolve_codex_home_falls_back_to_default_directory() {
@@ -488,12 +527,63 @@ mod tests {
     }
 
     #[test]
-    fn build_opencode_plugin_entry_uses_resolved_path() {
-        let skills_dir = PathBuf::from("/tmp/custom-opencode/skills/tuhucar");
-        let entry = build_opencode_plugin_entry(&skills_dir);
+    fn write_direct_skill_files_uses_direct_skill_directories() {
+        let temp_root = std::env::temp_dir().join(format!("tuhucar-opencode-layout-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_root);
 
-        assert_eq!(entry["name"], "tuhucar");
-        assert_eq!(entry["type"], "skill");
-        assert_eq!(entry["path"], "/tmp/custom-opencode/skills/tuhucar");
+        write_direct_skill_files(&temp_root).unwrap();
+
+        assert!(temp_root.join("tuhucar-shared").join("SKILL.md").exists());
+        assert!(temp_root.join("tuhucar-knowledge-assistant").join("SKILL.md").exists());
+        assert!(temp_root
+            .join("tuhucar-knowledge-assistant")
+            .join("references")
+            .join("command-reference.md")
+            .exists());
+        assert!(!temp_root.join("tuhucar").exists());
+
+        let _ = std::fs::remove_dir_all(&temp_root);
+    }
+
+    #[test]
+    fn prune_opencode_legacy_plugin_entries_removes_only_legacy_tuhucar_entries() {
+        let mut config = json!({
+            "theme": "opencode",
+            "plugins": [
+                {
+                    "name": "tuhucar",
+                    "type": "skill",
+                    "path": "/tmp/custom-opencode/skills/tuhucar"
+                },
+                {
+                    "name": "keep-me",
+                    "type": "plugin",
+                    "path": "/tmp/custom-opencode/plugins/keep-me"
+                }
+            ]
+        });
+
+        let changed = prune_opencode_legacy_plugin_entries(&mut config);
+
+        assert!(changed);
+        assert_eq!(config["plugins"][0]["name"], "keep-me");
+    }
+
+    #[test]
+    fn prune_opencode_legacy_plugin_entries_drops_empty_plugins_key() {
+        let mut config = json!({
+            "plugins": [
+                {
+                    "name": "tuhucar",
+                    "type": "skill",
+                    "path": "/tmp/custom-opencode/skills/tuhucar"
+                }
+            ]
+        });
+
+        let changed = prune_opencode_legacy_plugin_entries(&mut config);
+
+        assert!(changed);
+        assert!(config.get("plugins").is_none());
     }
 }
