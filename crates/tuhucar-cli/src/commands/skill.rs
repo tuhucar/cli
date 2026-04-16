@@ -7,7 +7,6 @@ const SHARED_SKILL: &str = include_str!("../../../../skills/tuhucar-shared/SKILL
 const CAR_ASSISTANT_SKILL: &str = include_str!("../../../../skills/tuhucar-car-assistant/SKILL.md");
 const COMMAND_REFERENCE: &str =
     include_str!("../../../../skills/tuhucar-car-assistant/references/command-reference.md");
-const CURSOR_PLUGIN_JSON: &str = include_str!("../../../../.cursor-plugin/plugin.json");
 const GEMINI_MD: &str = include_str!("../../../../GEMINI.md");
 const GEMINI_EXTENSION_JSON: &str = include_str!("../../../../gemini-extension.json");
 
@@ -239,11 +238,12 @@ fn install_cursor(home: &Path) -> PlatformResult {
         };
     }
     let result = (|| -> std::io::Result<()> {
-        let skills_dest = cursor_dir.join("skills").join("tuhucar");
-        write_skill_files(&skills_dest)?;
-        let plugin_dir = cursor_dir.join("plugins").join("tuhucar");
-        std::fs::create_dir_all(&plugin_dir)?;
-        std::fs::write(plugin_dir.join("plugin.json"), CURSOR_PLUGIN_JSON)?;
+        let skills_root = cursor_dir.join("skills");
+        write_direct_skill_files(&skills_root)?;
+
+        // Clean up the legacy namespaced skill/plugin layout from earlier installs.
+        let _ = std::fs::remove_dir_all(skills_root.join("tuhucar"));
+        let _ = std::fs::remove_dir_all(cursor_dir.join("plugins").join("tuhucar"));
         Ok(())
     })();
     match result {
@@ -259,15 +259,24 @@ fn install_cursor(home: &Path) -> PlatformResult {
 }
 
 fn uninstall_cursor(home: &Path) -> PlatformResult {
-    let skills_dir = home.join(".cursor").join("skills").join("tuhucar");
+    let skills_root = home.join(".cursor").join("skills");
+    let legacy_skills_dir = skills_root.join("tuhucar");
+    let shared_skill_dir = skills_root.join("tuhucar-shared");
+    let assistant_skill_dir = skills_root.join("tuhucar-knowledge-assistant");
     let plugin_dir = home.join(".cursor").join("plugins").join("tuhucar");
-    if !skills_dir.exists() && !plugin_dir.exists() {
+    if !legacy_skills_dir.exists()
+        && !shared_skill_dir.exists()
+        && !assistant_skill_dir.exists()
+        && !plugin_dir.exists()
+    {
         return PlatformResult {
             name: "Cursor",
             status: PlatformStatus::Skipped("not installed".into()),
         };
     }
-    let _ = std::fs::remove_dir_all(&skills_dir);
+    let _ = std::fs::remove_dir_all(&legacy_skills_dir);
+    let _ = std::fs::remove_dir_all(&shared_skill_dir);
+    let _ = std::fs::remove_dir_all(&assistant_skill_dir);
     let _ = std::fs::remove_dir_all(&plugin_dir);
     PlatformResult {
         name: "Cursor",
