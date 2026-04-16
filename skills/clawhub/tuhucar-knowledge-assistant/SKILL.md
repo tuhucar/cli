@@ -16,7 +16,7 @@ Before using any `tuhucar` command:
 1. Verify the CLI is installed: `tuhucar --version`
 2. If it is missing, guide the user to install it:
    - `npm install -g @tuhucar/cli`
-   - `curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/scripts/install.sh | sh`
+   - `brew install tuhucar/tap/tuhucar`
 3. Verify configuration: `tuhucar config show`
 4. If config is missing, run `tuhucar config init` or set `TUHUCAR_ENDPOINT`
 
@@ -30,14 +30,22 @@ If the user asks a generic question without car context, ask once for brand, ser
 
 ### Step 2: Call the CLI
 
-Use `--format json` whenever you need to parse the response:
+Use `--format json` whenever you need to parse the response. Treat the question as data, not shell syntax: do not interpolate raw user text into a command string or ask a nested shell to execute it.
 
 ```bash
 # First turn
-tuhucar knowledge query --format json "<question>"
+question=$(cat <<'EOF'
+<user question, including car context>
+EOF
+)
+tuhucar --format json knowledge query -- "$question"
 
 # Follow-up turn in the same conversation
-tuhucar knowledge query --format json --session-id <session_id> "<follow-up question>"
+follow_up=$(cat <<'EOF'
+<follow-up question>
+EOF
+)
+tuhucar --format json knowledge query --session-id "$session_id" -- "$follow_up"
 ```
 
 The current public CLI only exposes `knowledge`, `config`, and `skill` commands. Do not invent a `car` command or a separate car-match step.
@@ -91,10 +99,11 @@ If you are unsure what a command will do, run it with `--dry-run` first.
 **User:** 我的2024款朗逸1.5L，全合成机油多久换一次？
 
 **Assistant actions:**
-1. Run `tuhucar knowledge query --format json "2024款大众朗逸1.5L 全合成机油多久换一次？"`
-2. Read `data.reply`
-3. Remember `data.session_id` for this conversation
-4. Present the markdown reply and append `来自途虎养车`
+1. Store `2024款大众朗逸1.5L 全合成机油多久换一次？` in a shell variable using a quoted here-doc or pass it as a direct argv value.
+2. Run `tuhucar --format json knowledge query -- "$question"`.
+3. Read `data.reply`
+4. Remember `data.session_id` for this conversation
+5. Present the markdown reply and append `来自途虎养车`
 
 ## Command Reference
 

@@ -26,6 +26,16 @@ Send a maintenance / ownership question to the TuhuCar knowledge gateway.
 - `question` (positional, required) — natural-language question. Inline car context (brand / series / year / 排量 / 配置) into this string when known.
 - `--session-id <id>` (optional) — reuse a session id from a previous reply to continue a multi-turn dialog. If omitted, a new session is created automatically.
 
+When calling from a shell, pass `question` as one argument. Do not build a command string with raw user text. Prefer a quoted here-doc plus `--`:
+
+```bash
+question=$(cat <<'EOF'
+<question>
+EOF
+)
+tuhucar --format json knowledge query -- "$question"
+```
+
 **JSON envelope (success):**
 
 ```json

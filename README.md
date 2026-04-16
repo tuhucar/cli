@@ -35,7 +35,9 @@ npm install -g @tuhucar/cli
 ### Shell Installer
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/scripts/install.sh | sh
+curl -fsSLO https://raw.githubusercontent.com/tuhucar/cli/main/scripts/install.sh
+less install.sh
+sh install.sh
 ```
 
 ### Homebrew
@@ -132,9 +134,9 @@ clawhub login
 clawhub publish ./skills/clawhub/tuhucar-knowledge-assistant \
   --slug tuhucar-knowledge-assistant \
   --name "TuhuCar Knowledge Assistant" \
-  --version 0.0.2 \
+  --version 0.0.3 \
   --tags latest \
-  --changelog "Initial ClawHub release"
+  --changelog "Address ClawHub security scan findings"
 ```
 
 If you update the CLI behavior that the skill depends on, keep these files aligned:

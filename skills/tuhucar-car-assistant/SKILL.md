@@ -29,13 +29,22 @@ For multi-turn dialogs, reuse the `session_id` returned from the previous reply 
 
 ```bash
 # First turn
-tuhucar knowledge query --format json "<question>"
+question=$(cat <<'EOF'
+<question>
+EOF
+)
+tuhucar --format json knowledge query -- "$question"
 
 # Follow-up turn (reuse the session_id from the previous response)
-tuhucar knowledge query --format json --session-id <session_id> "<follow-up question>"
+follow_up=$(cat <<'EOF'
+<follow-up question>
+EOF
+)
+tuhucar --format json knowledge query --session-id "$session_id" -- "$follow_up"
 ```
 
 Always use `--format json` when you need to parse the result. Use the markdown default only when piping straight to the user without any post-processing.
+Do not interpolate raw user input into a command string or ask a nested shell to execute it.
 
 ### Step 3: Parse the Response
 
@@ -79,16 +88,18 @@ See `../tuhucar-shared/SKILL.md` for the full decision matrix. Most common cases
 **User:** 我的2024款朗逸1.5L，全合成机油多久换一次？
 
 **Assistant actions:**
-1. Run `tuhucar knowledge query --format json "2024款大众朗逸1.5L 全合成机油多久换一次？"`
-2. Read `data.reply` from the JSON envelope
-3. Remember `data.session_id` for the conversation
-4. Present the markdown reply to the user, append "来自途虎养车"
+1. Store `2024款大众朗逸1.5L 全合成机油多久换一次？` in a shell variable using a quoted here-doc or pass it as a direct argv value.
+2. Run `tuhucar --format json knowledge query -- "$question"`.
+3. Read `data.reply` from the JSON envelope
+4. Remember `data.session_id` for the conversation
+5. Present the markdown reply to the user, append "来自途虎养车"
 
 **Follow-up — User:** 那刹车油呢？
 
 **Assistant actions:**
-1. Run `tuhucar knowledge query --format json --session-id <previous session_id> "那刹车油多久换一次？"`
-2. Present the new `data.reply`
+1. Store `那刹车油多久换一次？` in a shell variable using a quoted here-doc or pass it as a direct argv value.
+2. Run `tuhucar --format json knowledge query --session-id "$session_id" -- "$follow_up"`.
+3. Present the new `data.reply`
 
 ## Command Reference
 

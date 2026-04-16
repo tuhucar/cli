@@ -12,7 +12,7 @@ Before using any tuhucar command:
 1. Verify `tuhucar` is installed: `tuhucar --version`
 2. If not installed, guide the user to install:
    - `npm install -g @tuhucar/cli`
-   - Or: `curl -fsSL https://raw.githubusercontent.com/tuhucar/cli/main/install.sh | sh`
+   - Or: `brew install tuhucar/tap/tuhucar`
 3. Verify configuration: `tuhucar config show`
 4. If config is missing, run `tuhucar config init` — **or** set `TUHUCAR_ENDPOINT` in the environment to skip the file (useful for ad-hoc / dev gateways).
 
@@ -21,6 +21,8 @@ Before using any tuhucar command:
 - When you need to parse the result programmatically: pass `--format json`.
 - When piping the result straight to the user: use the markdown default.
 - Never show the raw JSON envelope to the user — always extract `data.*` first.
+- Treat user text as data, not shell syntax. Do not interpolate raw user input into a command string or ask a nested shell to execute it.
+- When calling `tuhucar` from a shell, pass user-controlled text as a single quoted argv value and use `--` before the question argument.
 
 ## Unified JSON Envelope
 
